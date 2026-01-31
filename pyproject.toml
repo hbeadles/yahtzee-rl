@@ -1,0 +1,23 @@
+[project]
+name = "yahtzee-rl"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Hayden Beadles", email = "beadles@adobe.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "gymnasium>=1.2.3",
+    "numpy>=2.4.1",
+    "pandas>=3.0.0",
+    "pytest>=9.0.2",
+    "torch>=2.10.0",
+]
+
+[project.scripts]
+yahtzee-rl = "yahtzee_rl:main"
+
+[build-system]
+requires = ["uv_build>=0.9.16,<0.10.0"]
+build-backend = "uv_build"
