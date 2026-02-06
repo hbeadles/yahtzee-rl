@@ -20,46 +20,46 @@ def test_aces():
 
 
 def test_twos():
-    """Test twos scoring: counts dice showing 2."""
+    """Test twos scoring: sums dice showing 2."""
     # Satisfying cases
-    assert twos(np.array([2, 2, 3, 4, 5])) == 2  # Two 2s
-    assert twos(np.array([2, 2, 2, 2, 1])) == 4  # Four 2s
+    assert twos(np.array([2, 2, 3, 4, 5])) == 4  # Two 2s = 4 points
+    assert twos(np.array([2, 2, 2, 2, 1])) == 8  # Four 2s = 8 points
     # Non-satisfying case
     assert twos(np.array([1, 3, 4, 5, 6])) == 0  # No 2s
 
 
 def test_threes():
-    """Test threes scoring: counts dice showing 3."""
+    """Test threes scoring: sums dice showing 3."""
     # Satisfying cases
-    assert threes(np.array([3, 3, 3, 1, 2])) == 3  # Three 3s
-    assert threes(np.array([3, 3, 4, 5, 6])) == 2  # Two 3s
+    assert threes(np.array([3, 3, 3, 1, 2])) == 9  # Three 3s = 9 points
+    assert threes(np.array([3, 3, 4, 5, 6])) == 6  # Two 3s = 6 points
     # Non-satisfying case
     assert threes(np.array([1, 2, 4, 5, 6])) == 0  # No 3s
 
 
 def test_fours():
-    """Test fours scoring: counts dice showing 4."""
+    """Test fours scoring: sums dice showing 4."""
     # Satisfying cases
-    assert fours(np.array([4, 4, 1, 2, 3])) == 2  # Two 4s
-    assert fours(np.array([4, 4, 4, 4, 1])) == 4  # Four 4s
+    assert fours(np.array([4, 4, 1, 2, 3])) == 8  # Two 4s = 8 points
+    assert fours(np.array([4, 4, 4, 4, 1])) == 16  # Four 4s = 16 points
     # Non-satisfying case
     assert fours(np.array([1, 2, 3, 5, 6])) == 0  # No 4s
 
 
 def test_fives():
-    """Test fives scoring: counts dice showing 5."""
+    """Test fives scoring: sums dice showing 5."""
     # Satisfying cases
-    assert fives(np.array([5, 5, 5, 5, 1])) == 4  # Four 5s
-    assert fives(np.array([5, 5, 1, 2, 3])) == 2  # Two 5s
+    assert fives(np.array([5, 5, 5, 5, 1])) == 20  # Four 5s = 20 points
+    assert fives(np.array([5, 5, 1, 2, 3])) == 10  # Two 5s = 10 points
     # Non-satisfying case
     assert fives(np.array([1, 2, 3, 4, 6])) == 0  # No 5s
 
 
 def test_sixes():
-    """Test sixes scoring: counts dice showing 6."""
+    """Test sixes scoring: sums dice showing 6."""
     # Satisfying cases
-    assert sixes(np.array([6, 6, 6, 1, 2])) == 3  # Three 6s
-    assert sixes(np.array([6, 6, 3, 4, 5])) == 2  # Two 6s
+    assert sixes(np.array([6, 6, 6, 1, 2])) == 18  # Three 6s = 18 points
+    assert sixes(np.array([6, 6, 3, 4, 5])) == 12  # Two 6s = 12 points
     # Non-satisfying case
     assert sixes(np.array([1, 2, 3, 4, 5])) == 0  # No 6s
 
