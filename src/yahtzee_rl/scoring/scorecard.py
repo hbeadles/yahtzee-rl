@@ -44,6 +44,28 @@ class Scorecard:
                 "num_times_achieved": 0
             }
 
+    def is_category_marked(self, category: Category) -> bool:
+        """
+        Check if a category is marked
+        Args:
+            category: The category to check
+
+        Returns:
+            True if the category is marked, False otherwise
+        """
+        return self.score_board[category]["marked"]
+
+    def get_score_function(self, category: Category) -> ScoreFunc:
+        """
+        Get the score function for a given category
+        Args:
+            category: The category to get the score function for
+
+        Returns:
+            The score function for the category
+        """
+        return self.score_board[category]["score_func"]
+
     def reset(self) -> None:
         """Reset the scorecard for a new game."""
         for category, score_data in self.score_board.items():
