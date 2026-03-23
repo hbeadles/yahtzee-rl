@@ -1,7 +1,8 @@
 import numpy as np
 from collections import Counter
-from yahtzee_rl import Category
+from yahtzee_rl import Category, UPPER_SECTION_MAP
 from typing import Union
+
 
 def max_val_sums(num: int) -> int:
     """
@@ -38,6 +39,15 @@ def combo_satisfied(dice: np.ndarray, move: Union[Category, str]) -> bool:
     :return: True if satisfied, False otherwise
     """
     satisfied = False
+    def _check_upper(category: Category) -> bool:
+        d = dice_count(dice)
+        if d.get(UPPER_SECTION_MAP[category], 0) >= 1:
+            return  True
+        else:
+            return False
+
+    if move in (Category.upper_categories()):
+        satisfied = _check_upper(move)
     if move == Category.THREE_OF_A_KIND:
         d = dice_count(dice)
         satisfied = False
