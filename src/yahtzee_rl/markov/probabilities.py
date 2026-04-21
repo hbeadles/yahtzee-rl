@@ -2,19 +2,10 @@ import numpy as np
 from functools import lru_cache
 from typing import Tuple
 
-from yahtzee_rl import Category
+from yahtzee_rl import Category, UPPER_SECTION_MAP
 from yahtzee_rl.scoring.ops import dice_count
 from yahtzee_rl.scoring.scorecard import Scorecard
-from yahtzee_rl.scoring.ops import dice_sum_if_equal
 
-faces: dict[Category, int] = {
-    Category.ACES: 1,
-    Category.TWOS: 2,
-    Category.THREES: 3,
-    Category.FOURS: 4,
-    Category.FIVES: 5,
-    Category.SIXES: 6,
-}
 ### Lower section payoff utilities ###
 
 LOWER_FIXED_SCORES: dict[Category, int] = {
@@ -27,8 +18,6 @@ LOWER_FIXED_SCORES: dict[Category, int] = {
 YAHTZEE_BONUS = 100
 # Max possible sum-of-dice score (five 6s)
 MAX_DICE_SUM = 30
-# Expected sum of 5 fair dice (3.5 × 5) — conservative baseline for sum-based categories
-MEAN_DICE_SUM = 17.5
 
 
 @lru_cache(maxsize=4)
@@ -51,50 +40,46 @@ def _large_straight_t_powered(remaining_rolls: int) -> np.ndarray:
     """Cached matrix power of large_straight_t_matrix for a given number of remaining rolls."""
     return np.linalg.matrix_power(large_straight_t_matrix(), remaining_rolls)
 
-"""
-Fix reaching x to sum probabilities above target state (>= survival function)
-"""
 
-def lower_section_probabilities(dice: np.ndarray, score_card: Scorecard, 
+def lower_section_probabilities(dice: np.ndarray,
                                 move: Category, remaining_rolls: int) -> float:
     """
     Determine final probabilities for reaching lower section moves. 
     We also consider whether a move has already been marked. Unless it is a yahtzee.
     Args:
         dice: array of dice values (values 1-6)
-        score_card: the scorecard
         move: the move to consider
         remaining_rolls: the number of remaining rolls
 
     Returns:
         the probability of reaching the move
     """
-    def _is_marked(score_card: Scorecard, move: Category) -> bool:
-        return score_card.is_category_marked(move)
-    if move == Category.THREE_OF_A_KIND and not _is_marked(score_card, move):
+    if move == Category.THREE_OF_A_KIND:
         counts = dice_count(dice)
-        max_face = max(counts, key=counts.get)
-        return simple_three_of_a_kind(dice, max_face, remaining_rolls)
-    elif move == Category.FOUR_OF_A_KIND and not _is_marked(score_card, move):
+        final_probs = [simple_three_of_a_kind(dice, c, remaining_rolls) for c in counts.keys()]
+        max_prob = max(final_probs)
+        return max_prob
+    elif move == Category.FOUR_OF_A_KIND:
         counts = dice_count(dice)
-        max_face = max(counts, key=counts.get)
-        return simple_four_of_a_kind(dice, max_face, remaining_rolls)
-    elif move == Category.FULL_HOUSE and not _is_marked(score_card, move):
+        final_probs = [simple_four_of_a_kind(dice, c, remaining_rolls) for c in counts.keys()]
+        max_prob = max(final_probs)
+        return max_prob
+    elif move == Category.FULL_HOUSE:
         return full_house(dice, remaining_rolls)
     elif move == Category.SMALL_STRAIGHT:
         return determine_small_straight_probability(dice, remaining_rolls)
-    elif move == Category.LARGE_STRAIGHT and not _is_marked(score_card, move):
+    elif move == Category.LARGE_STRAIGHT:
         return determine_large_straight_probability(dice, remaining_rolls)
-    elif move == Category.YAHTZEE and not _is_marked(score_card, move):
+    elif move == Category.YAHTZEE:
         return yahtzee(dice, remaining_rolls)
-    elif move == Category.CHANCE and not _is_marked(score_card, move):
-        return 1.0
+    elif move == Category.CHANCE:
+        return 0.1
 
     return 0.0
 
 
 
-def upper_section_probability(dice: np.ndarray, score_card: Scorecard,
+def upper_section_probability(dice: np.ndarray,
                                move: Category, remaining_rolls: int) -> float:
     """
     P(getting >= 3 matching dice for this upper section category).
@@ -105,21 +90,21 @@ def upper_section_probability(dice: np.ndarray, score_card: Scorecard,
 
     Args:
         dice: array of dice values (values 1-6)
-        score_card: the scorecard
         move: the upper section category
         remaining_rolls: the number of remaining rolls
 
     Returns:
         P(count >= 3) for the category, or 0.0 if marked/invalid
     """
-    if move not in faces or score_card.is_category_marked(move):
-        return 0.0
     _, dist = upper_section_markov(dice, move, remaining_rolls)
-    return float(np.sum(dist[3:]))
+    return dist
 
 
-def upper_section_expected_score(dice: np.ndarray, score_card: Scorecard,
-                                  move: Category, remaining_rolls: int) -> float:
+def upper_section_expected_score(dice: np.ndarray,
+                                 score_card: Scorecard,
+                                 move: Category,
+                                 remaining_rolls: int,
+                                 lambda_v: float = 0.05) -> float:
     """
     Expected score for a single upper section category.
     Returns face_value * expected_count (raw expected points).
@@ -129,25 +114,33 @@ def upper_section_expected_score(dice: np.ndarray, score_card: Scorecard,
         score_card: the scorecard
         move: the upper section category
         remaining_rolls: the number of remaining rolls
+        lambda_v: Lambda value multiplied against final expected point probability;
+        this value reduces the overall effect of the top scores weight
 
     Returns:
         Expected score (0.0 to face_value * 5), or 0.0 if marked/invalid
+         lambda_v:
     """
     remaining = 375.0 - score_card.compute_final_score()
-    denominator = remaining if remaining > 0 else 375.0
+    denominator = remaining if remaining > 0 else 1.0 
     upper_score_max = 63.0
     upper_score_current = score_card.compute_upper_score()
     top_remaining = upper_score_max - upper_score_current
-    denom = .2 * (top_remaining / upper_score_max) 
-    if move not in faces or score_card.is_category_marked(move):
+    #denom = (top_remaining / upper_score_max) + (top_remaining / denominator)
+    if move not in UPPER_SECTION_MAP or score_card.is_category_marked(move):
         return 0.0
-    exp_count, _ = upper_section_markov(dice, move, remaining_rolls)
-    return (faces[move] * exp_count * (1 + denom)) / denominator
+    exp_count, dist = upper_section_markov(dice, move, remaining_rolls)
+    #return (faces[move] * exp_count) * denom
+    #return ((exp_count / upper_score_max) + (exp_count / denominator)) * dist
+    return (exp_count  / denominator) + (lambda_v * (top_remaining / upper_score_max))
 
 
 
-def lower_section_expected_score(dice: np.ndarray, score_card: Scorecard,
-                                  move: Category, remaining_rolls: int) -> float:
+def lower_section_expected_score(dice: np.ndarray,
+                                 score_card: Scorecard,
+                                 move: Category,
+                                 remaining_rolls: int,
+                                 lambda_v: float = 0.4) -> float:
     """
     Expected score for a single lower section category.
 
@@ -163,12 +156,14 @@ def lower_section_expected_score(dice: np.ndarray, score_card: Scorecard,
         score_card: the scorecard
         move: the lower section category
         remaining_rolls: the number of remaining rolls
+        lambda_v: Lambda value multiplied against yahtzee expectation, to bring up its
+        lower probability
 
     Returns:
         Expected score (float), or 0.0 if marked/invalid
     """
     remaining = 375.0 - score_card.compute_final_score()
-    denominator = remaining if remaining > 0 else 375.0
+    denominator = remaining if remaining > 0 else 1.0 
     if move not in Category.lower_categories():
         return 0.0
     # Yahtzee requires special handling for the bonus
@@ -178,32 +173,53 @@ def lower_section_expected_score(dice: np.ndarray, score_card: Scorecard,
         if score_card.is_category_marked(Category.YAHTZEE):
             # Category filled, but each additional yahtzee earns +100
             if yahtzee_achieved >= 1:
-                return (raw_prob * YAHTZEE_BONUS) / denominator
+                payoff = ((YAHTZEE_BONUS) / denominator) + lambda_v
+                return (raw_prob * payoff)
             return 0.0
         else:
             # First yahtzee: base 50 pts
-            return (raw_prob * LOWER_FIXED_SCORES[Category.YAHTZEE]) / denominator
+            payoff = (LOWER_FIXED_SCORES[Category.YAHTZEE] / denominator) + lambda_v
+            return (raw_prob * payoff)
 
-    prob = lower_section_probabilities(dice, score_card, move, remaining_rolls)
+    prob = lower_section_probabilities(dice, move, remaining_rolls)
 
     # Fixed-score categories
     if move in LOWER_FIXED_SCORES:
-        return (prob * LOWER_FIXED_SCORES[move]) / denominator
+        payoff = (float(LOWER_FIXED_SCORES[move]) / denominator)
+        return (prob * payoff)
 
     # Sum-based categories: score = sum of all 5 dice when combo is achieved
     if move in (Category.THREE_OF_A_KIND, Category.FOUR_OF_A_KIND):
-        return (prob * (np.sum(dice))) / denominator
+        if move == Category.THREE_OF_A_KIND:
+            d_counts = dice_count(dice)
+            max_face = max(d_counts, key=d_counts.get)
+            l_dice = [max_face] * 3
+            upper_dice = l_dice + [6, 6]
+            lower_dice = l_dice + [1, 1]
+            mean_dice = (np.sum(upper_dice) + np.sum(lower_dice)) / 2
+            payoff = (mean_dice / denominator)
+            return (prob * payoff)
+        elif move == Category.FOUR_OF_A_KIND:
+            d_counts = dice_count(dice)
+            max_face = max(d_counts, key=d_counts.get)
+            l_dice = [max_face] * 4
+            upper_dice = l_dice + [6]
+            lower_dice = l_dice + [1]
+            mean_dice = (np.sum(upper_dice) + np.sum(lower_dice)) / 2
+            payoff = (mean_dice / denominator)
+            return (prob * payoff)
 
     # Chance: always achievable (prob=1.0), score = sum of dice
     # With remaining rolls we'd keep high dice; current sum is a lower bound
     if move == Category.CHANCE:
-        return (float(np.sum(dice))) / denominator
+        payoff = float(np.sum(dice)) / denominator
+        return (prob * payoff)
 
     return 0.0
 
 
 
-def upper_section_prob_vector(dice: np.ndarray, score_card: Scorecard,
+def upper_section_prob_vector(dice: np.ndarray,
                                remaining_rolls: int) -> np.ndarray:
     """
     Observation vector of P(>=3) probabilities for all 6 upper section categories.
@@ -211,7 +227,6 @@ def upper_section_prob_vector(dice: np.ndarray, score_card: Scorecard,
 
     Args:
         dice: array of dice values (values 1-6)
-        score_card: the scorecard
         remaining_rolls: the number of remaining rolls
 
     Returns:
@@ -219,12 +234,14 @@ def upper_section_prob_vector(dice: np.ndarray, score_card: Scorecard,
     """
     obs = np.zeros(6, dtype=np.float32)
     for i, category in enumerate(Category.upper_categories()):
-        obs[i] = upper_section_probability(dice, score_card, category, remaining_rolls)
+        obs[i] = upper_section_probability(dice, category, remaining_rolls)
     return obs
 
 
-def upper_section_expected_score_vector(dice: np.ndarray, score_card: Scorecard,
-                                         remaining_rolls: int) -> np.ndarray:
+def upper_section_expected_score_vector(dice: np.ndarray,
+                                        score_card: Scorecard,
+                                        remaining_rolls: int,
+                                        lambda_v: float = 0.05) -> np.ndarray:
     """
     Observation vector of normalized expected scores for all 6 upper section categories.
     Each value is expected_score / max_possible_score = expected_count / 5, in [0, 1].
@@ -234,20 +251,19 @@ def upper_section_expected_score_vector(dice: np.ndarray, score_card: Scorecard,
         dice: array of dice values (values 1-6)
         score_card: the scorecard
         remaining_rolls: the number of remaining rolls
+        lambda_v: Lambda value passed into upper section probability
 
     Returns:
         np.ndarray of shape (6,) with normalized expected scores per upper category
     """
     obs = np.zeros(6, dtype=np.float32)
     for i, category in enumerate(Category.upper_categories()):
-        if score_card.is_category_marked(category):
-            continue
-        exp_count = upper_section_expected_score(dice, score_card, category, remaining_rolls)
+        exp_count = upper_section_expected_score(dice, score_card, category, remaining_rolls, lambda_v=lambda_v,)
         obs[i] = exp_count  
     return obs
 
 
-def lower_section_prob_vector(dice: np.ndarray, score_card: Scorecard,
+def lower_section_prob_vector(dice: np.ndarray,
                                remaining_rolls: int) -> np.ndarray:
     """
     Observation vector of probabilities for all 7 lower section categories.
@@ -255,7 +271,6 @@ def lower_section_prob_vector(dice: np.ndarray, score_card: Scorecard,
 
     Args:
         dice: array of dice values (values 1-6)
-        score_card: the scorecard
         remaining_rolls: the number of remaining rolls
 
     Returns:
@@ -263,12 +278,14 @@ def lower_section_prob_vector(dice: np.ndarray, score_card: Scorecard,
     """
     obs = np.zeros(7, dtype=np.float32)
     for i, category in enumerate(Category.lower_categories()):
-        obs[i] = lower_section_probabilities(dice, score_card, category, remaining_rolls)
+        obs[i] = lower_section_probabilities(dice, category, remaining_rolls)
     return obs
 
 
-def lower_section_expected_score_vector(dice: np.ndarray, score_card: Scorecard,
-                                         remaining_rolls: int) -> np.ndarray:
+def lower_section_expected_score_vector(dice: np.ndarray,
+                                        score_card: Scorecard,
+                                        remaining_rolls: int,
+                                        lambda_yahtzee: float = 0.4) -> np.ndarray:
     """
     Observation vector of normalized expected scores for all 7 lower section categories.
     Each value is expected_score / max_possible_score, in [0, 1].
@@ -278,19 +295,21 @@ def lower_section_expected_score_vector(dice: np.ndarray, score_card: Scorecard,
         dice: array of dice values (values 1-6)
         score_card: the scorecard
         remaining_rolls: the number of remaining rolls
+        lambda_yahtzee: Lambda value passed into lower section probability
 
     Returns:
         np.ndarray of shape (7,) with normalized expected scores per lower category
     """
     obs = np.zeros(7, dtype=np.float32)
     for i, category in enumerate(Category.lower_categories()):
-        expected = lower_section_expected_score(dice, score_card, category, remaining_rolls)
+        expected = lower_section_expected_score(dice, score_card,
+                                                category, remaining_rolls, lambda_v=lambda_yahtzee)
         obs[i] = expected 
     return obs
 
 
 def upper_section_markov(dice: np.ndarray, category: Category, 
-                         remaining_rolls: int) -> Tuple[float, np.ndarray]:
+                         remaining_rolls: int) -> tuple[int, float]:
     """
     Core Markov chain computation for upper section categories.
     Returns both the expected count and the full probability distribution
@@ -306,12 +325,14 @@ def upper_section_markov(dice: np.ndarray, category: Category,
             - expected_count: E[matching dice] after remaining rolls (0.0 to 5.0)
             - distribution: np.ndarray of shape (6,) with P(count=i) for i in 0..5
     """
-    count = dice_count(dice)[faces[category]]
-    state = np.zeros(6, dtype=float)
-    state[count] = 1
-    dist = _upper_count_t_powered(remaining_rolls) @ state
-    expected = float(np.dot(np.arange(6), dist))
-    return expected, dist.astype(np.float32)
+    count = dice_count(dice)[UPPER_SECTION_MAP[category]]
+    # state = np.zeros(6, dtype=float)
+    # state[count] = 1
+    # dist = _upper_count_t_powered(remaining_rolls) @ state
+    # expected = float(np.dot(np.arange(6), dist))
+    # return expected, dist[count]
+    three_of_a_kind = simple_three_of_a_kind(dice, UPPER_SECTION_MAP[category], remaining_rolls)
+    return UPPER_SECTION_MAP[category] * count, three_of_a_kind
 
 def reaching_x(dice: np.ndarray, dice_number: int, target_state: int, remaining_rolls: int) -> float:
     """
@@ -329,9 +350,14 @@ def reaching_x(dice: np.ndarray, dice_number: int, target_state: int, remaining_
     """
     count = dice_count(dice)[dice_number]
     initial_state = np.zeros(5)
-    initial_state[count-1] = 1
+    if count == 0: 
+        f_count = 0
+    else:
+        f_count = count - 1
+    initial_state[f_count] = 1
     state_vec = _runs_t_powered(remaining_rolls) @ initial_state
     return np.sum(state_vec[target_state:])
+    #return state_vec[target_state]
 
 def determine_straight_state(dice: np.ndarray, straight: np.ndarray) -> int:
     """
@@ -354,6 +380,7 @@ def determine_small_straight_probability(dice: np.ndarray, remaining_rolls: int)
         remaining_rolls: the number of remaining rolls
     """
     possibles = np.array([[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]])
+    prob_matches = []
     for possible in possibles:
         l_state = determine_straight_state(dice, possible)
         if l_state >= 1:
@@ -361,12 +388,19 @@ def determine_small_straight_probability(dice: np.ndarray, remaining_rolls: int)
                 return 1.0
             else:
                 initial_state = np.zeros(4)
-                initial_state[l_state-1] = 1
+                if l_state == 0:
+                    initial_state[0] = 1
+                else:
+                    initial_state[l_state-1] = 1
                 probability_v = _straight_t_powered(remaining_rolls) @ initial_state
                 chosen_prob = probability_v[3]
-                return chosen_prob
-    return 0.0
-
+                prob_matches.append(chosen_prob)
+    if len(prob_matches) > 0:
+        return max(prob_matches)
+    else:
+        return 0.0
+ 
+ 
 def determine_large_straight_probability(dice: np.ndarray, remaining_rolls: int) -> float:
     """
     Probability of achieving a large straight (5 consecutive numbers in a row).
@@ -374,8 +408,8 @@ def determine_large_straight_probability(dice: np.ndarray, remaining_rolls: int)
         dice: array of dice values (values 1-6)
         remaining_rolls: the number of remaining rolls
     """
-    pass
     possibles = np.array([[1, 2, 3, 4, 5], [2, 3, 4, 5, 6]])
+    prob_matches = []
     for possible in possibles:
         l_state = determine_straight_state(dice, possible)
         if l_state >= 1:
@@ -383,11 +417,17 @@ def determine_large_straight_probability(dice: np.ndarray, remaining_rolls: int)
                 return 1.0
             else:
                 initial_state = np.zeros(5)
-                initial_state[l_state-1] = 1
+                if l_state == 0:
+                    initial_state[0] = 1
+                else:
+                    initial_state[l_state-1] = 1
                 probability_v = _large_straight_t_powered(remaining_rolls) @ initial_state
                 chosen_prob = probability_v[4]
-                return chosen_prob
-    return 0.0
+                prob_matches.append(chosen_prob)
+    if len(prob_matches) > 0:
+        return max(prob_matches)
+    else:
+        return 0.0
 
 def simple_three_of_a_kind(dice: np.ndarray, dice_number: int, remaining_rolls: int) -> float:
     """
@@ -455,6 +495,10 @@ def full_house(dice: np.ndarray, remaining_rolls: int) -> float:
     
     # Case 5: All singles - approximate
     return 0.05 * remaining_rolls
+    # if combo_satisfied(dice, Category.FULL_HOUSE):
+    #     return 1.0
+    # else:
+    #     return 0.1
 
 def yahtzee(dice: np.ndarray, remaining_rolls: int) -> float:
     """
@@ -465,6 +509,8 @@ def yahtzee(dice: np.ndarray, remaining_rolls: int) -> float:
     """
     counts = dice_count(dice)
     max_face = max(counts, key=counts.get)
+    if counts[max_face] == 5:
+        return 1.0
     return reaching_x(dice, max_face, 4, remaining_rolls)
 
 def runs_t_matrix():

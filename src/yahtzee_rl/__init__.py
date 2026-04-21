@@ -4,7 +4,7 @@ Yahtzee RL - A reinforcement learning approach to Yahtzee.
 import random
 import math
 from enum import Enum, StrEnum
-from typing import List
+from typing import Callable, List, Dict, Tuple
 
 import numpy
 
@@ -62,6 +62,50 @@ class Category(StrEnum):
 UPPER_CATEGORY_NAMES: List[str] = [c.value for c in Category.upper_categories()]
 LOWER_CATEGORY_NAMES: List[str] = [c.value for c in Category.lower_categories()]
 CATEGORY_NAMES: List[str] = UPPER_CATEGORY_NAMES + LOWER_CATEGORY_NAMES
+UPPER_SECTION_MAP: Dict[Category, int] = {
+    Category.ACES: 1,
+    Category.TWOS: 2,
+    Category.THREES: 3,
+    Category.FOURS: 4,
+    Category.FIVES: 5,
+    Category.SIXES: 6,
+}
+
+# Mapping from action index (0-12) to Category
+ACTION_TO_CATEGORY: Dict[int, Category] = {
+    i: category for i, category in enumerate(Category.upper_categories() + Category.lower_categories())
+}
+CATEGORY_TO_ACTION: Dict[Category, int] = {
+    category: i for i, category in enumerate(Category.upper_categories() + Category.lower_categories())
+}
+
+ScoreFunc = Callable[[numpy.ndarray], int]
+
+from yahtzee_rl.scoring.ops import (
+    aces, twos, threes, fours, fives, sixes,
+    three_of_a_kind, four_of_a_kind, yahtzee, small_straight,
+    full_house, large_straight, chance,
+)
+
+SCORE_TYPES: List[Tuple[Category, ScoreFunc, CATEGORIES]] = [
+    (Category.ACES, aces, CATEGORIES.UPPER),
+    (Category.TWOS, twos, CATEGORIES.UPPER),
+    (Category.THREES, threes, CATEGORIES.UPPER),
+    (Category.FOURS, fours, CATEGORIES.UPPER),
+    (Category.FIVES, fives, CATEGORIES.UPPER),
+    (Category.SIXES, sixes, CATEGORIES.UPPER),
+    (Category.THREE_OF_A_KIND, three_of_a_kind, CATEGORIES.LOWER),
+    (Category.FOUR_OF_A_KIND, four_of_a_kind, CATEGORIES.LOWER),
+    (Category.FULL_HOUSE, full_house, CATEGORIES.LOWER),
+    (Category.SMALL_STRAIGHT, small_straight, CATEGORIES.LOWER),
+    (Category.LARGE_STRAIGHT, large_straight, CATEGORIES.LOWER),
+    (Category.YAHTZEE, yahtzee, CATEGORIES.LOWER),
+    (Category.CHANCE, chance, CATEGORIES.LOWER),
+]
+
+CATEGORY_SCORE_FUNC: Dict[Category, ScoreFunc] = {
+    cat: fn for cat, fn, _ in SCORE_TYPES
+}
 
 
 def dice_roll(num_dice: int = 5) -> numpy.ndarray:
