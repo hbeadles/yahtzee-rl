@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Type, Union
 import gymnasium as gym
 from stable_baselines3 import PPO, DQN, A2C, SAC
@@ -16,6 +17,8 @@ from sb3_contrib import MaskablePPO
 from enum import Enum
 from sb3_contrib.common.wrappers import ActionMasker
 import os
+
+from yahtzee_rl.paths import artifact_dir
 
 from stable_baselines3.common.callbacks import BaseCallback
 import numpy as np
@@ -107,13 +110,14 @@ class TrainerBaselines:
                  env: gym.Env,
                  exp_name: str,
                  verbose: int = 1,
-                 save_dir: str = "experiments",
+                 save_dir: Union[str, Path, None] = None,
                  vec_normalize: bool = False,
                  gae_lambda: Union[float, Tuple[float, float]] = 0.95,
                  **kwargs):
         self.model_type = model_type
         self.env = env
-        self.save_dir = os.path.join(save_dir, exp_name, datetime.now().strftime("%Y-%m-%d"))
+        base_dir = Path(save_dir) if save_dir is not None else artifact_dir()
+        self.save_dir = str(base_dir / exp_name / datetime.now().strftime("%Y-%m-%d"))
 
         if isinstance(gae_lambda, tuple):
             initial, final = gae_lambda
