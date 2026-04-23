@@ -2,7 +2,7 @@ import numpy as np
 from functools import lru_cache
 from typing import Tuple
 
-from yahtzee_rl import Category, UPPER_SECTION_MAP
+from yahtzee_rl.config import Category, UPPER_SECTION_MAP
 from yahtzee_rl.scoring.ops import dice_count
 from yahtzee_rl.scoring.scorecard import Scorecard
 

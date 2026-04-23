@@ -1,6 +1,6 @@
 import numpy as np
 from collections import Counter
-from yahtzee_rl import Category, UPPER_SECTION_MAP
+from yahtzee_rl.config import Category, UPPER_SECTION_MAP
 from typing import Union
 
 

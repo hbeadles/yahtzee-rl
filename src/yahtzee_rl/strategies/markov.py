@@ -2,7 +2,7 @@ import random
 
 import numpy as np
 
-from yahtzee_rl import Category, CATEGORY_SCORE_FUNC
+from yahtzee_rl.config import Category, CATEGORY_SCORE_FUNC
 from yahtzee_rl.envs.yahtzee_env import YahtzeeEnv
 from yahtzee_rl.markov.lookaheads import determine_keep_positions
 from yahtzee_rl.scoring.ops import combo_satisfied

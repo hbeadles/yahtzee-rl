@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from yahtzee_rl import CATEGORIES, Category, SCORE_TYPES, ScoreFunc
+from yahtzee_rl.config import CATEGORIES, Category, SCORE_TYPES, ScoreFunc
 import numpy as np
 
 

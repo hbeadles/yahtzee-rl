@@ -7,7 +7,7 @@ based on the target scoring category (move).
 import numpy as np
 from functools import reduce
 from typing import List, Union
-from yahtzee_rl import Category, UPPER_SECTION_MAP
+from yahtzee_rl.config import Category, UPPER_SECTION_MAP
 from yahtzee_rl.scoring.ops import dice_count
 
 

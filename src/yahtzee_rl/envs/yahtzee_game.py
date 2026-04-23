@@ -1,5 +1,5 @@
 from yahtzee_rl.scoring.scorecard import Scorecard
-from yahtzee_rl import Category
+from yahtzee_rl.config import Category
 from typing import Tuple
 import numpy as np
 

@@ -4,7 +4,7 @@ from yahtzee_rl.scoring.scorecard import Scorecard
 from yahtzee_rl.scoring.ops import combo_satisfied
 from yahtzee_rl.envs.yahtzee_game import YahtzeeGame
 from typing import Optional
-from yahtzee_rl import Category, ACTION_TO_CATEGORY
+from yahtzee_rl.config import Category, ACTION_TO_CATEGORY
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces

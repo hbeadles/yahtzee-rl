@@ -1,6 +1,6 @@
 import gymnasium as gym
 from yahtzee_rl.envs.yahtzee_env import YahtzeeEnv
-from yahtzee_rl import Category
+from yahtzee_rl.config import Category
 from yahtzee_rl.scoring.scorecard import Scorecard
 from yahtzee_rl.scoring.ops import combo_satisfied
 from yahtzee_rl.strategies.base import Strategy
