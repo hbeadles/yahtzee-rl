@@ -1,13 +1,13 @@
 from yahtzee_rl.markov.probabilities import (
-    reaching_x, simple_three_of_a_kind, simple_four_of_a_kind, full_house,
+    simple_three_of_a_kind, full_house,
     upper_section_expected_score, upper_section_probability, upper_section_prob_vector, upper_section_expected_score_vector,
-     lower_section_probabilities, lower_section_expected_score,
+     lower_section_expected_score,
     lower_section_prob_vector, lower_section_expected_score_vector
 )
 import numpy as np
 import pytest
 from yahtzee_rl.scoring.scorecard import Scorecard
-from yahtzee_rl import Category
+from yahtzee_rl.config import Category
 
 
 def test_simple_three_of_a_kind():

@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from yahtzee_rl.scoring.scorecard import Scorecard
 
 

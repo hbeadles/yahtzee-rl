@@ -1,5 +1,4 @@
 """Tests for yahtzee_rl.markov.lookaheads module."""
-import pytest
 import numpy as np
 from yahtzee_rl.markov.lookaheads import determine_keep_positions
 
