@@ -121,6 +121,23 @@ def dice_roll(num_dice: int = 5) -> numpy.ndarray:
     return numpy.ceil(numpy.random.uniform(0, 1, num_dice) * 6).astype(int)
 
 
+
+
+def _build_cli():
+    """Construct the root Typer CLI lazily to avoid circular imports at package import time."""
+    import typer
+    from yahtzee_rl.train.train_cli import app as train_app
+
+    cli = typer.Typer(help="Yahtzee RL command-line interface.")
+    cli.add_typer(train_app, name="train", help="Train RL agents on the Yahtzee environment.")
+
+    # Future: evaluation CLI
+    # from yahtzee_rl.evaluate.evaluate_cli import app as evaluate_app
+    # cli.add_typer(evaluate_app, name="evaluate", help="Evaluate trained agents.")
+
+    return cli
+
+
 def main() -> None:
-    """Entry point for the package."""
-    print("Hello from yahtzee-rl!")
+    """Entry point for the ``yahtzee-rl`` console script."""
+    _build_cli()()

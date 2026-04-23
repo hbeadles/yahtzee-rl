@@ -51,7 +51,9 @@ class YahtzeeEnv(gym.Env):
                  lambda_upper: Optional[float] = 0.05,
                  lambda_yahtzee: Optional[float] = 0.1,
                  use_probabilities: bool = True,
-                 use_expecteds: bool = True):
+                 use_expecteds: bool = True,
+                 invalid_action_substitute: bool = False,
+                 invalid_action_penalty: float = -20.0):
         super().__init__()
         self.render_mode = render_mode
         self.game = YahtzeeGame()
@@ -59,6 +61,8 @@ class YahtzeeEnv(gym.Env):
         self.use_expecteds = use_expecteds
         self.lambda_upper = lambda_upper
         self.lambda_yahtzee = lambda_yahtzee
+        self.invalid_action_substitute = invalid_action_substitute
+        self.invalid_action_penalty = invalid_action_penalty
         obs_dim = self.OBS_DIM
         if not use_probabilities:
             obs_dim -= 13
@@ -76,17 +80,42 @@ class YahtzeeEnv(gym.Env):
         if self.game.rolls_remaining > 0:
             roll_bits = np.unpackbits(np.array([int(action)], dtype=np.uint8), count=5, bitorder='little')
             self.game.roll_dice(roll_bits)
-            return self._build_observation(), 0.0, False, False, {}
-        else:
-            category = ACTION_TO_CATEGORY[action]
-            upper_score, lower_score, valid = self.game.score_category(category)
-            reward = upper_score + lower_score
-            done = self.game.is_game_over()
-            if not done:
-                self.game.reset_rolls()
-                return self._build_observation(), reward, done, False, {}
-            else:
-                return self._build_observation(), reward, done, False, {}
+            return self._build_observation(), 0.0, False, False, {"game_reward": 0.0}
+
+        info: dict = {}
+        if self.invalid_action_substitute:
+            mask = self.action_masks()
+            if not mask[action]:
+                action, info = self._substitute_invalid_action(action, mask)
+
+        category = ACTION_TO_CATEGORY[action]
+        upper_score, lower_score, valid = self.game.score_category(category)
+        reward = upper_score + lower_score
+        info["game_reward"] = reward
+        if info.get("invalid_action"):
+            reward += self.invalid_action_penalty
+        done = self.game.is_game_over()
+        if not done:
+            self.game.reset_rolls()
+        return self._build_observation(), reward, done, False, info
+
+    def _substitute_invalid_action(self, action: int, mask: np.ndarray) -> tuple:
+        """
+        Pick a random valid scoring category to replace an invalid action.
+
+        Called only in the scoring phase, only when ``invalid_action_substitute``
+        is True and ``mask[action]`` is False. Returns ``(new_action, info_patch)``
+        where ``info_patch`` should be merged into the ``step()`` info dict. The
+        caller is responsible for applying ``invalid_action_penalty`` to the reward.
+        """
+        valid_categories = np.where(mask[:13])[0]
+        new_action = int(self.np_random.choice(valid_categories))
+        info_patch = {
+            "invalid_action": True,
+            "invalid_action_original": int(action),
+            "invalid_action_substituted": new_action,
+        }
+        return new_action, info_patch
 
     def action_masks(self):
         """
