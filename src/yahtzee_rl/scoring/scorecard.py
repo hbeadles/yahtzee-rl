@@ -1,14 +1,7 @@
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Dict
 
-from yahtzee_rl import CATEGORY_NAMES, CATEGORIES, Category
-from yahtzee_rl.scoring.ops import aces, twos, threes, fours, fives, sixes, \
-    three_of_a_kind, four_of_a_kind, yahtzee, small_straight, full_house, \
-    large_straight, chance
+from yahtzee_rl.config import CATEGORIES, Category, SCORE_TYPES, ScoreFunc
 import numpy as np
-
-
-# Type alias for score function
-ScoreFunc = Callable[[np.ndarray], int]
 
 
 class Scorecard:
@@ -16,26 +9,10 @@ class Scorecard:
     Represents a Yahtzee scorecard that tracks scores across all categories.
     """
 
-    SCORE_TYPES: List[Tuple[Category, ScoreFunc, CATEGORIES]] = [
-        (Category.ACES, aces, CATEGORIES.UPPER),
-        (Category.TWOS, twos, CATEGORIES.UPPER),
-        (Category.THREES, threes, CATEGORIES.UPPER),
-        (Category.FOURS, fours, CATEGORIES.UPPER),
-        (Category.FIVES, fives, CATEGORIES.UPPER),
-        (Category.SIXES, sixes, CATEGORIES.UPPER),
-        (Category.THREE_OF_A_KIND, three_of_a_kind, CATEGORIES.LOWER),
-        (Category.FOUR_OF_A_KIND, four_of_a_kind, CATEGORIES.LOWER),
-        (Category.FULL_HOUSE, full_house, CATEGORIES.LOWER),
-        (Category.SMALL_STRAIGHT, small_straight, CATEGORIES.LOWER),
-        (Category.LARGE_STRAIGHT, large_straight, CATEGORIES.LOWER),
-        (Category.YAHTZEE, yahtzee, CATEGORIES.LOWER),
-        (Category.CHANCE, chance, CATEGORIES.LOWER),
-    ]
-
     def __init__(self, turn_number: int) -> None:
         self.turn_number: int = turn_number
         self.score_board: Dict[Category, Dict[str, Any]] = {}
-        for category_t in self.SCORE_TYPES:
+        for category_t in SCORE_TYPES:
             self.score_board[category_t[0]] = {
                 "marked": False,
                 "score_func": category_t[1],

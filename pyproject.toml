@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [
-    { name = "Hayden Beadles", email = "beadles@adobe.com" }
+    { name = "Hayden Beadles", email = "beadleshayden@gmail.com" }
 ]
 requires-python = ">=3.12"
 dependencies = [
@@ -12,9 +12,15 @@ dependencies = [
     "matplotlib>=3.10.8",
     "numpy>=2.4.1",
     "pandas>=3.0.0",
+    "platformdirs>=4.9.6",
     "pytest>=9.0.2",
+    "raylib>=5.5.0.4",
+    "sb3-contrib>=2.7.1",
     "scipy>=1.17.0",
+    "stable-baselines3[extra]>=2.7.1",
     "torch>=2.10.0",
+    "tqdm>=4.67.3",
+    "typer>=0.24.2",
 ]
 
 [project.scripts]
