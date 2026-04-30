@@ -34,6 +34,7 @@ def model(experiment_name: Annotated[str, typer.Argument(help="The name of the e
             invalid_action_substitute=run_config.env.invalid_action_substitute,
             invalid_action_penalty=run_config.env.invalid_action_penalty,
     )
+    mask_action = False
     match run_config.model_type:
         case "MASKABLE_PPO":
             print("Evaluating MASKABLE_PPO model")
@@ -45,6 +46,7 @@ def model(experiment_name: Annotated[str, typer.Argument(help="The name of the e
                                        clip_range=run_config.clip_range, 
                                        gae_lambda=(run_config.gae_lambda_initial, run_config.gae_lambda_final), 
                                        normalize_advantage=run_config.normalize_advantage)
+            mask_action = True
         case "DQN":
             print("Evaluating DQN model")
             policy_kwargs = dict(net_arch=run_config.policy_net_arch)
@@ -68,7 +70,7 @@ def model(experiment_name: Annotated[str, typer.Argument(help="The name of the e
             print(f"Unsupported model type: {run_config.model_type}")
             raise ValueError(f"Unsupported model type: {run_config.model_type}")
     
-    if run_config.vec_normalize:
+    if getattr(run_config, "vec_normalize", False):
         trainer.load(model_path=full_path / "model.zip", vecnormalize_path=full_path / "vecnormalize.pkl")
     else:
         trainer.load(model_path=full_path / "model.zip")
@@ -86,23 +88,29 @@ def model(experiment_name: Annotated[str, typer.Argument(help="The name of the e
         step_count = 0
         turn_index = 0
         while not done:
-            if run_config.vec_normalize:
-                raw = trainer.env.get_original_obs()          # shape (n_envs, obs_dim)
-                parsed = YahtzeeEnv.parse_observation(raw[0], 
-                                                    use_expecteds=run_config.env.use_expecteds, 
-                                                    use_probabilities=run_config.env.use_probabilities)
+            if getattr(run_config, "vec_normalize", False):
+                raw = trainer.env.get_original_obs()  # (n_envs, obs_dim)
+                obs_for_parse = raw[0]
             else:
-                parsed = YahtzeeEnv.parse_observation(obs[0], use_expecteds=run_config.env.use_expecteds, use_probabilities=run_config.env.use_probabilities)
-            action_masks = trainer.env.get_attr('action_masks')[0]()
+                obs_for_parse = obs[0]
+            parsed = YahtzeeEnv.parse_observation(obs_for_parse, use_expecteds=run_config.env.use_expecteds, use_probabilities=run_config.env.use_probabilities)
             if parsed['time_to_score']:
-                action, _ = trainer.model.predict(obs, action_masks=action_masks, deterministic=True)
+                if mask_action:
+                    action_masks = trainer.env.get_attr('action_masks')[0]()
+                    action, _ = trainer.model.predict(obs, action_masks=action_masks, deterministic=True)
+                else:
+                    action, _ = trainer.model.predict(obs, deterministic=True)
                 action_counts[turn_index, action] += 1
                 turn_index += 1
                 obs, reward, done, info = trainer.env.step(action)
                 if done[0]:
                     Y.append(reward[0])
             else:
-                action, _ = trainer.model.predict(obs, action_masks=action_masks, deterministic=True)
+                if mask_action:
+                    action_masks = trainer.env.get_attr('action_masks')[0]()
+                    action, _ = trainer.model.predict(obs, action_masks=action_masks, deterministic=True)
+                else:
+                    action, _ = trainer.model.predict(obs, deterministic=True)
                 obs, reward, done, info = trainer.env.step(action)
             total_reward += reward
             step_count += 1
