@@ -40,7 +40,7 @@ class YahtzeeGame:
         lower_score = self.scorecard.compute_lower_score()
         self.round += 1
         self.rolls_remaining = 3
-        return upper_score, lower_score, True
+        return score, upper_score, lower_score, True
 
     def is_game_over(self) -> bool:
         """

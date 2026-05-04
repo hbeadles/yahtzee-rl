@@ -19,18 +19,18 @@ app = typer.Typer()
 @app.command()
 def ppo(experiment_name: Annotated[str, typer.Argument(help="The name of the experiment")],
               max_timesteps: Annotated[float, typer.Argument(help="The maximum number of timesteps")] = 30e6,
-              save_freq: Annotated[int, typer.Argument(help="The frequency of saving the model (in timesteps)")] = 100000,
+              save_freq: Annotated[int, typer.Option(help="The frequency of saving the model (in timesteps)")] = 100000,
               use_expecteds: Annotated[bool, typer.Option(help="Whether to use expecteds")] = True,
               use_probabilities: Annotated[bool, typer.Option(help="Whether to use probabilities")] = True,
-              batch_size: Annotated[int, typer.Argument(help="The batch size")] = 128,
-              n_steps: Annotated[int, typer.Argument(help="The number of steps")] = 2512,
-              gamma: Annotated[float, typer.Argument(help="The discount factor")] = 0.99,
-              n_epochs: Annotated[int, typer.Argument(help="The number of epochs")] = 8,
-              ent_coef: Annotated[float, typer.Argument(help="The entropy coefficient")] = 0.02,
+              batch_size: Annotated[int, typer.Option(help="The batch size")] = 128,
+              n_steps: Annotated[int, typer.Option(help="The number of steps")] = 2512,
+              gamma: Annotated[float, typer.Option(help="The discount factor")] = 0.99,
+              n_epochs: Annotated[int, typer.Option(help="The number of epochs")] = 8,
+              ent_coef: Annotated[float, typer.Option(help="The entropy coefficient")] = 0.02,
               vec_normalize: Annotated[bool, typer.Option(help="Whether to use vector normalization")] = True,
-              clip_range: Annotated[float, typer.Argument(help="The clip range")] = 0.1,
-              gae_lambda_initial: Annotated[float, typer.Argument(help="The initial GAE lambda")] = 0.2,
-              gae_lambda_final: Annotated[float, typer.Argument(help="The GAE lambda")] = 0.95,
+              clip_range: Annotated[float, typer.Option(help="The clip range")] = 0.1,
+              gae_lambda_initial: Annotated[float, typer.Option(help="The initial GAE lambda")] = 0.2,
+              gae_lambda_final: Annotated[float, typer.Option(help="The GAE lambda")] = 0.95,
               normalize_advantage: Annotated[bool, typer.Option(help="Whether to normalize the advantage")] = False):
     """Train a Maskable PPO agent on the Yahtzee environment.
 
@@ -105,19 +105,19 @@ def ppo(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
 @app.command()
 def dqn(experiment_name: Annotated[str, typer.Argument(help="The name of the experiment")],
               max_timesteps: Annotated[float, typer.Argument(help="The maximum number of timesteps")] = 30e6,
-              save_freq: Annotated[int, typer.Argument(help="The frequency of saving the model (in timesteps)")] = 100000,
+              save_freq: Annotated[int, typer.Option(help="The frequency of saving the model (in timesteps)")] = 100000,
               use_expecteds: Annotated[bool, typer.Option(help="Whether to use expecteds")] = True,
               use_probabilities: Annotated[bool, typer.Option(help="Whether to use probabilities")] = True,
               invalid_action_substitute: Annotated[bool, typer.Option(help="Whether to substitute a valid action when the agent picks an invalid one")] = True,
-              invalid_action_penalty: Annotated[float, typer.Argument(help="Reward penalty applied when an invalid action is substituted")] = -20.0,
-              buffer_size: Annotated[int, typer.Argument(help="Replay buffer size")] = 1_000_000,
-              learning_starts: Annotated[int, typer.Argument(help="Steps collected before learning begins")] = 10_000,
-              batch_size: Annotated[int, typer.Argument(help="The batch size")] = 40,
-              gamma: Annotated[float, typer.Argument(help="The discount factor")] = 0.99,
-              train_freq: Annotated[int, typer.Argument(help="Train the model every N environment steps")] = 4,
-              gradient_steps: Annotated[int, typer.Argument(help="Gradient steps per training update")] = 1,
-              exploration_fraction: Annotated[float, typer.Argument(help="Fraction of training over which epsilon is annealed")] = 0.2,
-              tau: Annotated[float, typer.Argument(help="Target network soft-update coefficient (1.0 = hard update)")] = 1.0):
+              invalid_action_penalty: Annotated[float, typer.Option(help="Reward penalty applied when an invalid action is substituted")] = -20.0,
+              buffer_size: Annotated[int, typer.Option(help="Replay buffer size")] = 1_000_000,
+              learning_starts: Annotated[int, typer.Option(help="Steps collected before learning begins")] = 10_000,
+              batch_size: Annotated[int, typer.Option(help="The batch size")] = 40,
+              gamma: Annotated[float, typer.Option(help="The discount factor")] = 0.99,
+              train_freq: Annotated[int, typer.Option(help="Train the model every N environment steps")] = 4,
+              gradient_steps: Annotated[int, typer.Option(help="Gradient steps per training update")] = 1,
+              exploration_fraction: Annotated[float, typer.Option(help="Fraction of training over which epsilon is annealed")] = 0.2,
+              tau: Annotated[float, typer.Option(help="Target network soft-update coefficient (1.0 = hard update)")] = 1.0):
     """Train a DQN agent on the Yahtzee environment.
 
     Args:
@@ -202,16 +202,16 @@ def dqn(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
 @app.command()
 def a2c(experiment_name: Annotated[str, typer.Argument(help="The name of the experiment")],
               max_timesteps: Annotated[float, typer.Argument(help="The maximum number of timesteps")] = 30e6,
-              save_freq: Annotated[int, typer.Argument(help="The frequency of saving the model (in timesteps)")] = 100000,
+              save_freq: Annotated[int, typer.Option(help="The frequency of saving the model (in timesteps)")] = 100000,
               use_expecteds: Annotated[bool, typer.Option(help="Whether to use expecteds")] = False,
               use_probabilities: Annotated[bool, typer.Option(help="Whether to use probabilities")] = True,
-              invalid_action_penalty: Annotated[float, typer.Argument(help="Reward penalty applied when an invalid action is substituted")] = -20.0,
-              n_steps: Annotated[int, typer.Argument(help="The number of steps")] = 2512,
-              gamma: Annotated[float, typer.Argument(help="The discount factor")] = 0.99,
-              ent_coef: Annotated[float, typer.Argument(help="The entropy coefficient")] = 0.02,
+              invalid_action_penalty: Annotated[float, typer.Option(help="Reward penalty applied when an invalid action is substituted")] = -20.0,
+              n_steps: Annotated[int, typer.Option(help="The number of steps")] = 2512,
+              gamma: Annotated[float, typer.Option(help="The discount factor")] = 0.99,
+              ent_coef: Annotated[float, typer.Option(help="The entropy coefficient")] = 0.02,
               vec_normalize: Annotated[bool, typer.Option(help="Whether to use vector normalization")] = True,
-              gae_lambda_initial: Annotated[float, typer.Argument(help="The initial GAE lambda")] = 0.3,
-              gae_lambda_final: Annotated[float, typer.Argument(help="The GAE lambda")] = 0.95,
+              gae_lambda_initial: Annotated[float, typer.Option(help="The initial GAE lambda")] = 0.3,
+              gae_lambda_final: Annotated[float, typer.Option(help="The GAE lambda")] = 0.95,
               normalize_advantage: Annotated[bool, typer.Option(help="Whether to normalize the advantage")] = False):
     """Train an A2C agent on the Yahtzee environment.
 
