@@ -34,7 +34,7 @@ MaskedPPO is a version of PPO that invalidates "wrong" actions within the model 
 **Command**
 
 ```bash
-uv run yahtzee-rl train ppo <experiment_name> [max_timesteps] [save_freq] [OPTIONS]
+uv run yahtzee-rl train ppo <experiment_name> [max_timesteps] [OPTIONS]
 ```
 
 Artifacts are written to `artifacts/<experiment_name>/<YYYY-MM-DD>/` (model, checkpoints, `VecNormalize` stats, learning-curve plot, run config).
@@ -43,26 +43,26 @@ Artifacts are written to `artifacts/<experiment_name>/<YYYY-MM-DD>/` (model, che
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `experiment_name` | str | — | Artifact subdirectory name (required). |
-| `max_timesteps` | float | `30e6` | Total environment steps to train for. |
-| `save_freq` | int | `100000` | Checkpoint frequency, in env steps. |
+| `experiment_name` | str (positional) | — | Artifact subdirectory name (required). |
+| `max_timesteps` | float (positional) | `30e6` | Total environment steps to train for. |
+| `--save-freq` | int | `100000` | Checkpoint frequency, in env steps. |
 | `--use-expecteds / --no-use-expecteds` | bool | `True` | Include per-category expected-score features in the observation. |
 | `--use-probabilities / --no-use-probabilities` | bool | `True` | Include per-category probability features in the observation. |
-| `batch_size` | int | `128` | Minibatch size for each PPO update. |
-| `n_steps` | int | `2512` | Env steps collected per rollout before an update. |
-| `gamma` | float | `0.99` | Discount factor. |
-| `n_epochs` | int | `8` | Optimization epochs per rollout. |
-| `ent_coef` | float | `0.02` | Entropy regularization coefficient. |
+| `--batch-size` | int | `128` | Minibatch size for each PPO update. |
+| `--n-steps` | int | `2512` | Env steps collected per rollout before an update. |
+| `--gamma` | float | `0.99` | Discount factor. |
+| `--n-epochs` | int | `8` | Optimization epochs per rollout. |
+| `--ent-coef` | float | `0.02` | Entropy regularization coefficient. |
 | `--vec-normalize / --no-vec-normalize` | bool | `True` | Wrap env in `VecNormalize` for observation normalization. |
-| `clip_range` | float | `0.1` | PPO surrogate-objective clip range. |
-| `gae_lambda_initial` | float | `0.2` | Starting value for linearly-scheduled GAE lambda. |
-| `gae_lambda_final` | float | `0.95` | Ending value for linearly-scheduled GAE lambda. |
+| `--clip-range` | float | `0.1` | PPO surrogate-objective clip range. |
+| `--gae-lambda-initial` | float | `0.2` | Starting value for linearly-scheduled GAE lambda. |
+| `--gae-lambda-final` | float | `0.95` | Ending value for linearly-scheduled GAE lambda. |
 | `--normalize-advantage / --no-normalize-advantage` | bool | `False` | Normalize advantages within each minibatch. |
 
 **Example**
 
 ```bash
-uv run yahtzee-rl train ppo ppo_yahtzee_full 30000000 100000
+uv run yahtzee-rl train ppo ppo_yahtzee_full 30000000 --save-freq 100000
 ```
 
 #### DQN
@@ -72,33 +72,33 @@ DQN is value-based control that learns Q-values over the discrete action space w
 **Command**
 
 ```bash
-uv run yahtzee-rl train dqn <experiment_name> [max_timesteps] [save_freq] [OPTIONS]
+uv run yahtzee-rl train dqn <experiment_name> [max_timesteps] [OPTIONS]
 ```
 
 **Parameters**
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `experiment_name` | str | — | Artifact subdirectory name (required). |
-| `max_timesteps` | float | `30e6` | Total environment steps to train for. |
-| `save_freq` | int | `100000` | Checkpoint frequency, in env steps. |
+| `experiment_name` | str (positional) | — | Artifact subdirectory name (required). |
+| `max_timesteps` | float (positional) | `30e6` | Total environment steps to train for. |
+| `--save-freq` | int | `100000` | Checkpoint frequency, in env steps. |
 | `--use-expecteds / --no-use-expecteds` | bool | `True` | Include per-category expected-score features in the observation. |
 | `--use-probabilities / --no-use-probabilities` | bool | `True` | Include per-category probability features in the observation. |
 | `--invalid-action-substitute / --no-invalid-action-substitute` | bool | `True` | Substitute a valid action when the agent picks an invalid one. |
-| `invalid_action_penalty` | float | `-20.0` | Reward penalty when an invalid action is substituted. |
-| `buffer_size` | int | `1000000` | Replay buffer capacity. |
-| `learning_starts` | int | `10000` | Steps collected before the first gradient update. |
-| `batch_size` | int | `40` | Minibatch size sampled from the replay buffer. |
-| `gamma` | float | `0.99` | Discount factor. |
-| `train_freq` | int | `4` | Perform a training update every `train_freq` env steps. |
-| `gradient_steps` | int | `1` | Gradient steps per training update. |
-| `exploration_fraction` | float | `0.2` | Fraction of training over which epsilon-greed anneals. |
-| `tau` | float | `1.0` | Target-network soft-update coefficient (`1.0` = hard update). |
+| `--invalid-action-penalty` | float | `-20.0` | Reward penalty when an invalid action is substituted. |
+| `--buffer-size` | int | `1000000` | Replay buffer capacity. |
+| `--learning-starts` | int | `10000` | Steps collected before the first gradient update. |
+| `--batch-size` | int | `40` | Minibatch size sampled from the replay buffer. |
+| `--gamma` | float | `0.99` | Discount factor. |
+| `--train-freq` | int | `4` | Perform a training update every `train_freq` env steps. |
+| `--gradient-steps` | int | `1` | Gradient steps per training update. |
+| `--exploration-fraction` | float | `0.2` | Fraction of training over which epsilon-greed anneals. |
+| `--tau` | float | `1.0` | Target-network soft-update coefficient (`1.0` = hard update). |
 
 **Example**
 
 ```bash
-uv run yahtzee-rl train dqn dqn_yahtzee_full 30000000 100000
+uv run yahtzee-rl train dqn dqn_yahtzee_full 30000000 --save-freq 100000
 ```
 
 #### A2C
@@ -108,31 +108,31 @@ A2C is a synchronous actor–critic policy-gradient method without action maskin
 **Command**
 
 ```bash
-uv run yahtzee-rl train a2c <experiment_name> [max_timesteps] [save_freq] [OPTIONS]
+uv run yahtzee-rl train a2c <experiment_name> [max_timesteps] [OPTIONS]
 ```
 
 **Parameters**
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `experiment_name` | str | — | Artifact subdirectory name (required). |
-| `max_timesteps` | float | `30e6` | Total environment steps to train for. |
-| `save_freq` | int | `100000` | Checkpoint frequency, in env steps. |
+| `experiment_name` | str (positional) | — | Artifact subdirectory name (required). |
+| `max_timesteps` | float (positional) | `30e6` | Total environment steps to train for. |
+| `--save-freq` | int | `100000` | Checkpoint frequency, in env steps. |
 | `--use-expecteds / --no-use-expecteds` | bool | `False` | Include per-category expected-score features in the observation. |
 | `--use-probabilities / --no-use-probabilities` | bool | `True` | Include per-category probability features in the observation. |
-| `invalid_action_penalty` | float | `-20.0` | Reward penalty when an invalid action is substituted. |
-| `n_steps` | int | `2512` | Env steps collected per rollout before an update. |
-| `gamma` | float | `0.99` | Discount factor. |
-| `ent_coef` | float | `0.02` | Entropy regularization coefficient. |
+| `--invalid-action-penalty` | float | `-20.0` | Reward penalty when an invalid action is substituted. |
+| `--n-steps` | int | `2512` | Env steps collected per rollout before an update. |
+| `--gamma` | float | `0.99` | Discount factor. |
+| `--ent-coef` | float | `0.02` | Entropy regularization coefficient. |
 | `--vec-normalize / --no-vec-normalize` | bool | `True` | Wrap env in `VecNormalize` for observation normalization. |
-| `gae_lambda_initial` | float | `0.3` | Starting value for linearly-scheduled GAE lambda. |
-| `gae_lambda_final` | float | `0.95` | Ending value for linearly-scheduled GAE lambda. |
+| `--gae-lambda-initial` | float | `0.3` | Starting value for linearly-scheduled GAE lambda. |
+| `--gae-lambda-final` | float | `0.95` | Ending value for linearly-scheduled GAE lambda. |
 | `--normalize-advantage / --no-normalize-advantage` | bool | `False` | Normalize advantages within each minibatch. |
 
 **Example**
 
 ```bash
-uv run yahtzee-rl train a2c a2c_yahtzee_full 30000000 100000
+uv run yahtzee-rl train a2c a2c_yahtzee_full 30000000 --save-freq 100000
 ```
 
 
@@ -153,18 +153,40 @@ uv run yahtzee-rl train a2c a2c_yahtzee_full 30000000 100000
   </tr>
 </table>
 
+2. **A2C**
 
+`uv run model a2c_yahtzee_v3_full 2026-04-21`
+
+<table>
+  <tr>
+    <td><img src="https://raw.githubusercontent.com/hbeadles/yahtzee-rl/eb7b9a430763a59a54b790840656d5a4dcc02a76/imgs/yatzee_metrics_a2c.png" alt="A2C Metrics" width="400"/></td>
+    <td><img src="https://raw.githubusercontent.com/hbeadles/yahtzee-rl/eb7b9a430763a59a54b790840656d5a4dcc02a76/imgs/yahtzee_scorecard_map_a2c.png" alt="A2C Scorecard" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center">A2C Metrics - 500 games</td>
+    <td align="center">A2C Scorecard Heatmap</td>
+  </tr>
+</table>
+
+3. **DQN**
+
+`uv run model dqn_yahtzee_v3_full 2026-04-22`
+
+<table>
+  <tr>
+    <td><img src="https://raw.githubusercontent.com/hbeadles/yahtzee-rl/eb7b9a430763a59a54b790840656d5a4dcc02a76/imgs/yahtzee_metrics_dqn.png" alt="DQN Metrics" width="400"/></td>
+    <td><img src="https://raw.githubusercontent.com/hbeadles/yahtzee-rl/eb7b9a430763a59a54b790840656d5a4dcc02a76/imgs/yahtzee_scorecard_map_dqn.png" alt="DQN Scorecard" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center">DQN Metrics - 500 games</td>
+    <td align="center">DQN Scorecard Heatmap</td>
+  </tr>
+</table>
 
 
 
 ## How to Play
 
-### Yahtzee Game
+Rules can be found below:
 
-*13 Rounds* - Choose a score-target each round. There are two categories of scores, in an *Upper* section and *Lower* section. 
-
-#### Upper
-
-All of these comprise of the sum of dice that contains a particular die value, whether 1s, 2s.. up to 6s. Getting more than $63$ points here yields an upper score bonus of 35 at the end of the game. 
-
-1. 
+1. [Yahtzee](https://pi.math.cornell.edu/~mec/2006-2007/Probability/Yahtzee.htm)
