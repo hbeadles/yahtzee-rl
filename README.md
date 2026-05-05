@@ -159,8 +159,8 @@ uv run yahtzee-rl train a2c a2c_yahtzee_full 30000000 --save-freq 100000
 
 <table>
   <tr>
-    <td><img src="https://raw.githubusercontent.com/hbeadles/yahtzee-rl/eb7b9a430763a59a54b790840656d5a4dcc02a76/imgs/yatzee_metrics_a2c.png" alt="A2C Metrics" width="400"/></td>
-    <td><img src="https://raw.githubusercontent.com/hbeadles/yahtzee-rl/eb7b9a430763a59a54b790840656d5a4dcc02a76/imgs/yahtzee_scorecard_map_a2c.png" alt="A2C Scorecard" width="400"/></td>
+    <td><img src="https://raw.githubusercontent.com/hbeadles/yahtzee-rl/main/imgs/yahtzee_metrics_a2c.png" alt="A2C Metrics" width="400"/></td>
+    <td><img src="https://raw.githubusercontent.com/hbeadles/yahtzee-rl/main/imgs/yahtzee_scorecard_map_a2c.png" alt="A2C Scorecard" width="400"/></td>
   </tr>
   <tr>
     <td align="center">A2C Metrics - 500 games</td>
@@ -174,8 +174,8 @@ uv run yahtzee-rl train a2c a2c_yahtzee_full 30000000 --save-freq 100000
 
 <table>
   <tr>
-    <td><img src="https://raw.githubusercontent.com/hbeadles/yahtzee-rl/eb7b9a430763a59a54b790840656d5a4dcc02a76/imgs/yahtzee_metrics_dqn.png" alt="DQN Metrics" width="400"/></td>
-    <td><img src="https://raw.githubusercontent.com/hbeadles/yahtzee-rl/eb7b9a430763a59a54b790840656d5a4dcc02a76/imgs/yahtzee_scorecard_map_dqn.png" alt="DQN Scorecard" width="400"/></td>
+    <td><img src="https://raw.githubusercontent.com/hbeadles/yahtzee-rl/main/imgs/yahtzee_metrics_dqn.png" alt="DQN Metrics" width="400"/></td>
+    <td><img src="https://raw.githubusercontent.com/hbeadles/yahtzee-rl/main/imgs/yahtzee_scorecard_map_dqn.png" alt="DQN Scorecard" width="400"/></td>
   </tr>
   <tr>
     <td align="center">DQN Metrics - 500 games</td>
