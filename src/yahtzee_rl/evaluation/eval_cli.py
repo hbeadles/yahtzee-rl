@@ -100,7 +100,8 @@ def model(experiment_name: Annotated[str, typer.Argument(help="The name of the e
                     action, _ = trainer.model.predict(obs, action_masks=action_masks, deterministic=True)
                 else:
                     action, _ = trainer.model.predict(obs, deterministic=True)
-                action_counts[turn_index, action] += 1
+                if action in range(13):
+                    action_counts[turn_index, action] += 1
                 turn_index += 1
                 obs, reward, done, info = trainer.env.step(action)
                 if done[0]:
