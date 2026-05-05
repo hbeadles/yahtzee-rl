@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "experiment_name": "a2c_yahtzee_v3_full",
+  "created_at": "2026-04-21T00:00:00",
+  "max_timesteps": 30000000.0,
+  "save_freq": 100000,
+  "policy_net_arch": {
+    "pi": [
+      128,
+      128
+    ],
+    "vf": [
+      128,
+      128
+    ]
+  },
+  "env": {
+    "lambda_upper": 0.05,
+    "lambda_yahtzee": 0.2,
+    "use_expecteds": false,
+    "use_probabilities": true,
+    "invalid_action_substitute": true,
+    "invalid_action_penalty": -20.0
+  },
+  "model_type": "A2C",
+  "n_steps": 2512,
+  "gamma": 0.99,
+  "ent_coef": 0.02,
+  "vec_normalize": true,
+  "gae_lambda_initial": 0.3,
+  "gae_lambda_final": 0.95,
+  "normalize_advantage": false
+}

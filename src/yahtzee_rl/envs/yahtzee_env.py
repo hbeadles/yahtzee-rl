@@ -80,7 +80,10 @@ class YahtzeeEnv(gym.Env):
         if self.game.rolls_remaining > 0:
             roll_bits = np.unpackbits(np.array([int(action)], dtype=np.uint8), count=5, bitorder='little')
             self.game.roll_dice(roll_bits)
-            return self._build_observation(), 0.0, False, False, {"game_reward": 0.0}
+            reward = 0.0
+            #reward = 0.5 * np.max(upper_section_expected_score_vector(self.game.dice, self.game.scorecard, self.game.rolls_remaining, lambda_v=self.lambda_upper))
+            #reward += 0.5 * np.max(lower_section_expected_score_vector(self.game.dice, self.game.scorecard, self.game.rolls_remaining, lambda_yahtzee=self.lambda_yahtzee))
+            return self._build_observation(), 0.0, False, False, {"game_reward": reward}
 
         info: dict = {}
         if self.invalid_action_substitute:
@@ -89,8 +92,9 @@ class YahtzeeEnv(gym.Env):
                 action, info = self._substitute_invalid_action(action, mask)
 
         category = ACTION_TO_CATEGORY[action]
-        upper_score, lower_score, valid = self.game.score_category(category)
+        score, upper_score, lower_score, valid = self.game.score_category(category)
         reward = upper_score + lower_score
+        #reward = score + (0.05 * upper_score + lower_score)
         info["game_reward"] = reward
         if info.get("invalid_action"):
             reward += self.invalid_action_penalty

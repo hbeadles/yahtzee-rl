@@ -208,6 +208,8 @@ class TrainerBaselines:
 
         # Load returns a new model instance - must assign it back and pass env for continued training
         self.model = self.model.load(path, env=self.env)
+        # SB3 may wrap env (e.g. DummyVecEnv); keep trainer.env aligned with model.get_env().
+        self.env = self.model.get_env()
         return self.model
 
     def evaluate(self, num_episodes: int):
