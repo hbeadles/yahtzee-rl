@@ -94,6 +94,9 @@ def test_full_house():
     # Non-satisfying case - returns 0
     assert full_house(np.array([1, 2, 3, 4, 5])) == 0  # All different
     assert full_house(np.array([3, 3, 3, 3, 5])) == 0  # Four of a kind, not full house
+    assert full_house(np.array([2, 2, 5, 5, 6])) == 0  # Two pair is NOT a full house
+    assert full_house(np.array([3, 3, 6, 6, 1])) == 0  # Two pair, different values
+    assert full_house(np.array([4, 4, 4, 4, 4])) == 0  # Yahtzee does not satisfy (strict, no joker rule)
 
 
 def test_small_straight():

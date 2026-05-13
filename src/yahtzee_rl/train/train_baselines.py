@@ -124,7 +124,7 @@ class TrainerBaselines:
             self.gae_callback = GAELambdaScheduleCallback(
                 initial_lambda=initial,
                 final_lambda=final,
-                schedule="linear",
+                schedule="exponential",
                 verbose=1,
             )
             if model_type in (ModelType.PPO, ModelType.MASKABLE_PPO, ModelType.A2C):
