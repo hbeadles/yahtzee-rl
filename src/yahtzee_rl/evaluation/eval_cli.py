@@ -6,7 +6,9 @@ from yahtzee_rl.envs.yahtzee_env import YahtzeeEnv
 from yahtzee_rl.config import Category
 from yahtzee_rl.run_config import PPORunConfig, load_run_config
 from yahtzee_rl.display.metrics import plot_standard_metrics
+from yahtzee_rl.strategies.markov import MarkovStrategy
 from yahtzee_rl.paths import artifact_dir
+from yahtzee_rl.config import CATEGORY_TO_ACTION
 import numpy as np
 
 
@@ -121,6 +123,49 @@ def model(experiment_name: Annotated[str, typer.Argument(help="The name of the e
         Y,
         num_episodes,
         f"Evaluation of {experiment_name} on {run_date}",
+        action_counts=action_counts,
+        action_labels=category_labels,
+    )
+
+@app.command()
+def markov(num_episodes: Annotated[int, typer.Argument(help="The number of episodes to evaluate")] = 500):
+    """
+    Evaluate the Markov Agent on the Yahtzee environment.
+    """
+    X = np.arange(0, num_episodes, 1)
+    Y = []
+    action_counts = np.zeros((len(Category), len(Category)), dtype=int)
+    category_labels = [category.value for category in Category]
+    category_index = {category.value: idx for idx, category in enumerate(Category)}
+    env = YahtzeeEnv()
+    strategy = MarkovStrategy(env)
+    for _ in range(num_episodes):
+        obs, _ = env.reset()
+        done = False
+        total_reward = 0
+        step_count = 0
+        turn_index = 0
+        while not done:
+            parsed = YahtzeeEnv.parse_observation(obs)
+            if parsed['time_to_score']:
+                action = strategy.strategy(obs, env.game.scorecard)
+                action_key = action.value if isinstance(action, Category) else action
+                if action_key in category_index and turn_index < action_counts.shape[0]:
+                    action_counts[turn_index, category_index[action_key]] += 1
+                    turn_index += 1
+                obs, reward, done, truncated, info = env.step(CATEGORY_TO_ACTION[action])
+            else:
+                action = strategy.strategy(obs, env.game.scorecard)
+                obs, reward, done, truncated, info = env.step(action)
+            total_reward += reward
+            step_count += 1
+        Y.append(env.game.get_final_score())
+
+    plot_standard_metrics(
+        X,
+        Y,
+        num_episodes,
+        f"Evaluation of Markov Agent on Yahtzee Environment",
         action_counts=action_counts,
         action_labels=category_labels,
     )

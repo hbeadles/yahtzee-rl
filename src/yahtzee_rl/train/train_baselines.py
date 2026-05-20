@@ -22,6 +22,7 @@ from yahtzee_rl.paths import artifact_dir
 
 from stable_baselines3.common.callbacks import BaseCallback
 import numpy as np
+import glob
 
 
 class ProbabilityAnnealingCallback(BaseCallback):
@@ -124,7 +125,7 @@ class TrainerBaselines:
             self.gae_callback = GAELambdaScheduleCallback(
                 initial_lambda=initial,
                 final_lambda=final,
-                schedule="linear",
+                schedule="exponential",
                 verbose=1,
             )
             if model_type in (ModelType.PPO, ModelType.MASKABLE_PPO, ModelType.A2C):
@@ -189,6 +190,28 @@ class TrainerBaselines:
         self.model.save(os.path.join(self.save_dir, "model"))
         if isinstance(self.env, VecNormalize):
             self.env.save(os.path.join(self.save_dir, "vecnormalize.pkl"))
+        
+        self.cleanup_checkpoints()
+
+    def cleanup_checkpoints(self):
+        if os.path.exists(os.path.join(self.save_dir, "model.zip")):
+            # Get all checkpoint files in the save dir
+            checkpoint_files = glob.glob(os.path.join(self.save_dir, "checkpoint_*.zip"))
+            if checkpoint_files:
+                for checkpoint_file in checkpoint_files:
+                    os.remove(checkpoint_file)
+                print(f"Removed {len(checkpoint_files)} checkpoint files.")
+            else:
+                print("No model checkpoint files found.")
+        
+        if os.path.exists(os.path.join(self.save_dir, "vecnormalize.pkl")):
+            vecnormalize_files = glob.glob(os.path.join(self.save_dir, "checkpoint_vecnormalize_*.pkl"))
+            if vecnormalize_files:
+                for vecnormalize_file in vecnormalize_files:
+                    os.remove(vecnormalize_file)
+                print(f"Removed {len(vecnormalize_files)} vecnormalize files.")
+            else:
+                print("No vecnormalize checkpointfiles found.")
 
     def load(self, model_path: Optional[str] = None, vecnormalize_path: Optional[str] = None):
         path = model_path if model_path is not None else os.path.join(self.save_dir, "model")

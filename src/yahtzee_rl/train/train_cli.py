@@ -110,12 +110,12 @@ def dqn(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
               use_probabilities: Annotated[bool, typer.Option(help="Whether to use probabilities")] = True,
               invalid_action_substitute: Annotated[bool, typer.Option(help="Whether to substitute a valid action when the agent picks an invalid one")] = True,
               invalid_action_penalty: Annotated[float, typer.Option(help="Reward penalty applied when an invalid action is substituted")] = -20.0,
-              buffer_size: Annotated[int, typer.Option(help="Replay buffer size")] = 1_000_000,
-              learning_starts: Annotated[int, typer.Option(help="Steps collected before learning begins")] = 10_000,
-              batch_size: Annotated[int, typer.Option(help="The batch size")] = 40,
+              buffer_size: Annotated[int, typer.Option(help="Replay buffer size")] = 500_000,
+              learning_starts: Annotated[int, typer.Option(help="Steps collected before learning begins")] = 200_000,
+              batch_size: Annotated[int, typer.Option(help="The batch size")] = 64,
               gamma: Annotated[float, typer.Option(help="The discount factor")] = 0.99,
-              train_freq: Annotated[int, typer.Option(help="Train the model every N environment steps")] = 4,
-              gradient_steps: Annotated[int, typer.Option(help="Gradient steps per training update")] = 1,
+              train_freq: Annotated[int, typer.Option(help="Train the model every N environment steps")] = 8,
+              gradient_steps: Annotated[int, typer.Option(help="Gradient steps per training update")] = 2,
               exploration_fraction: Annotated[float, typer.Option(help="Fraction of training over which epsilon is annealed")] = 0.2,
               tau: Annotated[float, typer.Option(help="Target network soft-update coefficient (1.0 = hard update)")] = 1.0):
     """Train a DQN agent on the Yahtzee environment.

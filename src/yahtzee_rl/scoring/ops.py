@@ -63,14 +63,8 @@ def combo_satisfied(dice: np.ndarray, move: Union[Category, str]) -> bool:
                 satisfied = True
                 break
     elif move == Category.FULL_HOUSE:
-        d = dice_count(dice).most_common(2)
-        satisfied = True
-        for (k, v) in d:
-            if v == 3 or v == 2:
-                continue
-            else:
-                satisfied = False
-                break
+        counts = sorted(dice_count(dice).values(), reverse=True)
+        satisfied = counts == [3, 2]
     elif move == Category.SMALL_STRAIGHT:
         first = np.array([1, 2, 3, 4])
         second = np.array([2, 3, 4, 5])
