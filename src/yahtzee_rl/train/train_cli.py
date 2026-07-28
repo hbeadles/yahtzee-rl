@@ -159,7 +159,9 @@ def ppo(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
               gae_lambda_initial: Annotated[float, typer.Option(help="The initial GAE lambda")] = 0.2,
               gae_lambda_final: Annotated[float, typer.Option(help="The GAE lambda")] = 0.95,
               normalize_advantage: Annotated[bool, typer.Option(help="Whether to normalize the advantage")] = False,
-              target_kl: Annotated[Optional[float], typer.Option(help="Early-stop PPO epoch loop when approx KL exceeds this. Recommended ~0.02 for BC-resume runs; leave unset for from-scratch.")] = None):
+              target_kl: Annotated[Optional[float], typer.Option(help="Early-stop PPO epoch loop when approx KL exceeds this. Recommended ~0.02 for BC-resume runs; leave unset for from-scratch.")] = None,
+              s_ref: Annotated[float, typer.Option(help="Reference score for reward normalization")] = 150.0,
+              reward_exponent: Annotated[float, typer.Option(help="Exponent applied to normalized score in the reward shaping function")] = 6.0):
     """Train a Maskable PPO agent on the Yahtzee environment.
 
     Args:
@@ -178,6 +180,8 @@ def ppo(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
         gae_lambda_initial: Starting value for the linearly-scheduled GAE lambda.
         gae_lambda_final: Ending value for the linearly-scheduled GAE lambda.
         normalize_advantage: If True, normalize advantages within each minibatch.
+        s_ref: Reference score used to normalize the reward signal.
+        reward_exponent: Exponent applied to the normalized score in the reward shaping function.
 
     Side Effects:
         Writes checkpoints, the final model, VecNormalize stats (if enabled), and
@@ -192,6 +196,8 @@ def ppo(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
         lambda_yahtzee=0.2,
         use_expecteds=use_expecteds,
         use_probabilities=use_probabilities,
+        s_ref=s_ref,
+        reward_exponent=reward_exponent,
     )
     resolved_eval_freq: Optional[int] = save_freq if eval_freq < 0 else (eval_freq or None)
     run_config = PPORunConfig(
@@ -264,7 +270,7 @@ def dqn(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
               max_timesteps: Annotated[float, typer.Argument(help="The maximum number of timesteps")] = 30e6,
               save_freq: Annotated[int, typer.Option(help="The frequency of saving the model (in timesteps)")] = 100000,
               eval_freq: Annotated[int, typer.Option(help="Mid-training eval cadence in env steps; 0 to disable. Defaults to save_freq.")] = -1,
-              n_eval_episodes: Annotated[int, typer.Option(help="Episodes per mid-training eval pass")] = 5,
+              n_eval_episodes: Annotated[int, typer.Option(help="Episodes per mid-training eval pass")] = 30,
               use_expecteds: Annotated[bool, typer.Option(help="Whether to use expecteds")] = True,
               use_probabilities: Annotated[bool, typer.Option(help="Whether to use probabilities")] = True,
               invalid_action_substitute: Annotated[bool, typer.Option(help="Whether to substitute a valid action when the agent picks an invalid one")] = True,
@@ -280,7 +286,9 @@ def dqn(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
               target_update_freq: Annotated[int, typer.Option(help="Steps between target network hard updates")] = 100,
               update_timestep: Annotated[int, typer.Option(help="Perform a training update every N environment steps")] = 8,
               aux_lambda: Annotated[float, typer.Option(help="Auxiliary loss weight for the value head")] = 0.2,
-              tau: Annotated[float, typer.Option(help="Target network soft-update coefficient (1.0 = hard update)")] = 1.0):
+              tau: Annotated[float, typer.Option(help="Target network soft-update coefficient (1.0 = hard update)")] = 1.0,
+              s_ref: Annotated[float, typer.Option(help="Reference score for reward normalization")] = 150.0,
+              reward_exponent: Annotated[float, typer.Option(help="Exponent applied to normalized score in the reward shaping function")] = 6.0):
     """Train a DQN agent on the Yahtzee environment.
 
     Args:
@@ -303,6 +311,8 @@ def dqn(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
         target_update_freq: Steps between target-network hard-copy updates.
         update_timestep: Perform a gradient update every N environment steps.
         tau: Soft-update coefficient for the target network (1.0 = hard copy).
+        s_ref: Reference score used to normalize the reward signal.
+        reward_exponent: Exponent applied to the normalized score in the reward shaping function.
 
     Side Effects:
         Writes checkpoints, the final model, and a learning-curve plot under
@@ -318,6 +328,8 @@ def dqn(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
         use_probabilities=use_probabilities,
         invalid_action_substitute=invalid_action_substitute,
         invalid_action_penalty=invalid_action_penalty,
+        s_ref=s_ref,
+        reward_exponent=reward_exponent,
     )
     resolved_eval_freq: Optional[int] = save_freq if eval_freq < 0 else (eval_freq or None)
     epsilon_decay = int(max_timesteps * exploration_fraction)
@@ -389,6 +401,7 @@ def a2c(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
               save_freq: Annotated[int, typer.Option(help="The frequency of saving the model (in timesteps)")] = 100000,
               eval_freq: Annotated[int, typer.Option(help="Mid-training eval cadence in env steps; 0 to disable. Defaults to save_freq.")] = -1,
               n_eval_episodes: Annotated[int, typer.Option(help="Episodes per mid-training eval pass")] = 5,
+              resume_from: Annotated[Optional[Path], typer.Option(help="BC or checkpoint dir with model.zip")] = None,
               use_expecteds: Annotated[bool, typer.Option(help="Whether to use expecteds")] = False,
               use_probabilities: Annotated[bool, typer.Option(help="Whether to use probabilities")] = True,
               invalid_action_penalty: Annotated[float, typer.Option(help="Reward penalty applied when an invalid action is substituted")] = -20.0,
@@ -398,7 +411,9 @@ def a2c(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
               vec_normalize: Annotated[bool, typer.Option(help="Whether to use vector normalization")] = True,
               gae_lambda_initial: Annotated[float, typer.Option(help="The initial GAE lambda")] = 0.3,
               gae_lambda_final: Annotated[float, typer.Option(help="The GAE lambda")] = 0.95,
-              normalize_advantage: Annotated[bool, typer.Option(help="Whether to normalize the advantage")] = False):
+              normalize_advantage: Annotated[bool, typer.Option(help="Whether to normalize the advantage")] = False,
+              s_ref: Annotated[float, typer.Option(help="Reference score for reward normalization")] = 150.0,
+              reward_exponent: Annotated[float, typer.Option(help="Exponent applied to normalized score in the reward shaping function")] = 6.0):
     """Train an A2C agent on the Yahtzee environment.
 
     Args:
@@ -415,6 +430,8 @@ def a2c(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
         gae_lambda_initial: Starting value for the linearly-scheduled GAE lambda.
         gae_lambda_final: Ending value for the linearly-scheduled GAE lambda.
         normalize_advantage: If True, normalize advantages within each minibatch.
+        s_ref: Reference score used to normalize the reward signal.
+        reward_exponent: Exponent applied to the normalized score in the reward shaping function.
 
     Side Effects:
         Writes checkpoints, the final model, VecNormalize stats (if enabled), and
@@ -431,6 +448,8 @@ def a2c(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
         use_probabilities=use_probabilities,
         invalid_action_substitute=True,
         invalid_action_penalty=invalid_action_penalty,
+        s_ref=s_ref,
+        reward_exponent=reward_exponent,
     )
     resolved_eval_freq: Optional[int] = save_freq if eval_freq < 0 else (eval_freq or None)
     run_config = A2CRunConfig(
@@ -478,6 +497,15 @@ def a2c(experiment_name: Annotated[str, typer.Argument(help="The name of the exp
         env_factory=env_factory,
     )
     save_run_config(run_config, trainer.save_dir)
+    if resume_from is not None:
+        resume_path = Path(resume_from)
+        vec_path = resume_path / "vecnormalize.pkl"
+        trainer.load(
+            model_path=str(resume_path / "model.zip"),
+            vecnormalize_path=str(vec_path) if vec_normalize and vec_path.exists() else None,
+            should_train=True,
+        )
+        print(f"Resumed from {resume_path}")
     trainer.train(
         max_timesteps=max_timesteps,
         save_freq=save_freq,

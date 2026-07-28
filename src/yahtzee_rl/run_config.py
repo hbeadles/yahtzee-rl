@@ -38,8 +38,8 @@ class EnvConfig(BaseModel):
     use_probabilities: bool = True
     invalid_action_substitute: bool = False
     invalid_action_penalty: float = -20.0
-    s_ref: float = 200.0
-    reward_exponent: float = 3.0
+    s_ref: float = 150.0
+    reward_exponent: float = 6.0
 
 
 class _BaseRunConfig(BaseModel):

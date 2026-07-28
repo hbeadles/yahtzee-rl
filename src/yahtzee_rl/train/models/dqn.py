@@ -153,7 +153,9 @@ class DQNAgent():
             q_values = self.network(state)    
             q_values = q_values.masked_fill(~action_mask, -float('inf'))                          # [1, action_dim]
             return q_values.argmax(dim=1).item()
-
+    def predict_bonus(self, state: torch.Tensor):
+        return self.network.predict_bonus_achieved(state)
+    
     def update_target_network(self):
         self.target_network.load_state_dict(self.network.state_dict())
 
@@ -226,7 +228,7 @@ class DQNAgent():
     def save(self, checkpoint_path):
         torch.save(self.network.state_dict(), checkpoint_path)
 
-    def load(self, checkpoint_path):
+    def load(self, checkpoint_path, env=None):
         self.network.load_state_dict(torch.load(checkpoint_path))
         self.target_network.load_state_dict(torch.load(checkpoint_path))
     

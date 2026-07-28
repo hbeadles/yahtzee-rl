@@ -361,10 +361,11 @@ class TrainerBaselines:
                 while not (done or truncated):
                     current_mask = torch.tensor(self.env.unwrapped.action_masks(), dtype=torch.bool).unsqueeze(0).to(self.model.device)
                     action = self.model.select_action(state, current_mask, timestep)
+                    bonus_achieved = self.model.predict_bonus(state)
                     next_state, reward, done, truncated, _ = self.env.step(action)
                     next_mask = torch.tensor(self.env.unwrapped.action_masks(), dtype=torch.bool).unsqueeze(0).to(self.model.device)
                     next_state_tensor = torch.tensor(next_state, dtype=torch.float32).unsqueeze(0).to(self.model.device) if not (done or truncated) else None
-                    reward_tensor = torch.tensor([reward], dtype=torch.float32).to(self.model.device)
+                    reward_tensor = torch.tensor([reward + bonus_achieved], dtype=torch.float32).to(self.model.device)
                     self.model.push_to_memory(
                         transition(state, torch.tensor([action]), next_state_tensor, reward_tensor, current_mask, next_mask, None)
                     )
@@ -583,6 +584,14 @@ class TrainerBaselines:
         self.model.verbose = self.verbose
         # SB3 may wrap env (e.g. DummyVecEnv); keep trainer.env aligned with model.get_env().
         self.env = self.model.get_env()
+        return self.model
+    
+    def load_custom_dqn(self, model_path: Optional[str] = None):
+        if self.model_type is not ModelType.DQN:
+            raise ValueError("load_custom_dqn can only be used with DQN models.")
+        path = model_path if model_path is not None else os.path.join(self.save_dir, "best_model.pt")
+        
+        self.model.load(path, env=self.env)
         return self.model
 
     def save_agent(self, filename: str):
