@@ -35,6 +35,8 @@ def model(experiment_name: Annotated[str, typer.Argument(help="The name of the e
             use_probabilities=run_config.env.use_probabilities,
             invalid_action_substitute=run_config.env.invalid_action_substitute,
             invalid_action_penalty=run_config.env.invalid_action_penalty,
+            s_ref=run_config.env.s_ref,
+            reward_exponent=run_config.env.reward_exponent,
     )
     mask_action = False
     match run_config.model_type:
@@ -47,7 +49,8 @@ def model(experiment_name: Annotated[str, typer.Argument(help="The name of the e
                                        vec_normalize=run_config.vec_normalize, 
                                        clip_range=run_config.clip_range, 
                                        gae_lambda=(run_config.gae_lambda_initial, run_config.gae_lambda_final), 
-                                       normalize_advantage=run_config.normalize_advantage)
+                                       normalize_advantage=run_config.normalize_advantage,
+                                       target_kl=run_config.target_kl)
             mask_action = True
         case "DQN":
             print("Evaluating DQN model")
@@ -68,6 +71,14 @@ def model(experiment_name: Annotated[str, typer.Argument(help="The name of the e
                                        env, experiment_name, n_steps=run_config.n_steps,
                                        gamma=run_config.gamma, policy_kwargs=policy_kwargs, ent_coef=run_config.ent_coef,
                                        vec_normalize=run_config.vec_normalize, gae_lambda=(run_config.gae_lambda_initial, run_config.gae_lambda_final), normalize_advantage=run_config.normalize_advantage)
+        case "BC":
+            print("Evaluating BC checkpoint (MaskablePPO policy)")
+            policy_kwargs = dict(net_arch=run_config.policy_net_arch)
+            trainer = TrainerBaselines(ModelType.MASKABLE_PPO,
+                                       env, experiment_name,
+                                       policy_kwargs=policy_kwargs,
+                                       vec_normalize=run_config.vec_normalize)
+            mask_action = True
         case _:
             print(f"Unsupported model type: {run_config.model_type}")
             raise ValueError(f"Unsupported model type: {run_config.model_type}")
@@ -107,7 +118,7 @@ def model(experiment_name: Annotated[str, typer.Argument(help="The name of the e
                 turn_index += 1
                 obs, reward, done, info = trainer.env.step(action)
                 if done[0]:
-                    Y.append(reward[0])
+                    Y.append(info[0]["total_score"])
             else:
                 if mask_action:
                     action_masks = trainer.env.get_attr('action_masks')[0]()

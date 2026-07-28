@@ -1,13 +1,18 @@
 from yahtzee_rl.markov.probabilities import upper_section_probability, \
     upper_section_expected_score_vector, upper_section_prob_vector, lower_section_prob_vector, lower_section_expected_score_vector
 from yahtzee_rl.scoring.scorecard import Scorecard
-from yahtzee_rl.scoring.ops import combo_satisfied
 from yahtzee_rl.envs.yahtzee_game import YahtzeeGame
 from typing import Optional
-from yahtzee_rl.config import Category, ACTION_TO_CATEGORY
+from yahtzee_rl.config import Category, ACTION_TO_CATEGORY, CATEGORY_TO_ACTION, UPPER_SECTION_MAP
+import copy
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
+
+
+def _pursuit_reward(final_score: float, s_ref: float, exponent: float) -> float:
+    """Convex reward term: punishes mediocre final scores, amplifies high ones."""
+    return (final_score / s_ref) ** exponent
 
 
 class YahtzeeEnv(gym.Env):
@@ -21,12 +26,16 @@ class YahtzeeEnv(gym.Env):
         3. Round Number (1)
         4. Time to Score flag (1)
         5. Score Card (13)
-        6. Upper Score (1)
-        7. Lower Score (1)
-        8. Upper Section Probabilities (6)  — optional via ``use_probabilities``
-        9. Lower Section Probabilities (7)  — optional via ``use_probabilities``
-        10. Upper Section Expected Scores (6) — optional via ``use_expecteds``
-        11. Lower Section Expected Scores (7) — optional via ``use_expecteds``
+        6. Upper Score (1) — includes the +35 bonus once raw total >= 63
+        7. Total Score (1)
+        8. Bonus Progress (1) — phi_bonus = min(raw upper sum / 63, 1)
+        9. Joker Active (1)  — 1.0 iff the Hasbro Joker rule is available this
+           game (YAHTZEE scored with an actual Yahtzee), regardless of
+           whether the current dice happen to be a Yahtzee this turn
+        10. Upper Section Probabilities (6)  — optional via ``use_probabilities``
+        11. Lower Section Probabilities (7)  — optional via ``use_probabilities``
+        12. Upper Section Expected Scores (6) — optional via ``use_expecteds``
+        13. Lower Section Expected Scores (7) — optional via ``use_expecteds``
     3. Action space is 32
        1. 2^5 = 32 possible when a roll action
        2. 13 possible when a score action
@@ -39,6 +48,9 @@ class YahtzeeEnv(gym.Env):
         ("scorecard",                    13),
         ("upper_score",                   1),
         ("lower_score",                   1),
+        ("total_score",                   1),
+        ("bonus_progress",                1),
+        ("joker_active",                  1),
         ("upper_section_probabilities",   6),
         ("lower_section_probabilities",   7),
         ("upper_section_expected_scores", 6),
@@ -53,7 +65,9 @@ class YahtzeeEnv(gym.Env):
                  use_probabilities: bool = True,
                  use_expecteds: bool = True,
                  invalid_action_substitute: bool = False,
-                 invalid_action_penalty: float = -20.0):
+                 invalid_action_penalty: float = -20.0,
+                 s_ref: float = 150.0,
+                 reward_exponent: float = 6.0):
         super().__init__()
         self.render_mode = render_mode
         self.game = YahtzeeGame()
@@ -63,6 +77,8 @@ class YahtzeeEnv(gym.Env):
         self.lambda_yahtzee = lambda_yahtzee
         self.invalid_action_substitute = invalid_action_substitute
         self.invalid_action_penalty = invalid_action_penalty
+        self.s_ref = s_ref
+        self.reward_exponent = reward_exponent
         obs_dim = self.OBS_DIM
         if not use_probabilities:
             obs_dim -= 13
@@ -77,28 +93,48 @@ class YahtzeeEnv(gym.Env):
         return self._build_observation(), {}
     
     def step(self, action: int):
+        info: dict = {}
+        info["probabilities"] = [
+            self._build_upper_section_probabilities_observation(),
+            self._build_lower_section_probabilities_observation(), 
+        ]
+        info["expected_scores"] = [
+            self._build_upper_section_expected_score_observation(),
+            self._build_lower_section_expected_score_observation(), 
+        ]
         if self.game.rolls_remaining > 0:
             roll_bits = np.unpackbits(np.array([int(action)], dtype=np.uint8), count=5, bitorder='little')
             self.game.roll_dice(roll_bits)
             reward = 0.0
-            #reward = 0.5 * np.max(upper_section_expected_score_vector(self.game.dice, self.game.scorecard, self.game.rolls_remaining, lambda_v=self.lambda_upper))
-            #reward += 0.5 * np.max(lower_section_expected_score_vector(self.game.dice, self.game.scorecard, self.game.rolls_remaining, lambda_yahtzee=self.lambda_yahtzee))
             return self._build_observation(), 0.0, False, False, {"game_reward": reward}
 
-        info: dict = {}
         if self.invalid_action_substitute:
             mask = self.action_masks()
             if not mask[action]:
                 action, info = self._substitute_invalid_action(action, mask)
-
         category = ACTION_TO_CATEGORY[action]
         score, upper_score, lower_score, valid = self.game.score_category(category)
-        reward = upper_score + lower_score
-        #reward = score + (0.05 * upper_score + lower_score)
+        upper_score_measure = min(upper_score / 63.0, 1.0)
+
+        reward = score / 50.0
+        #reward = score 
         info["game_reward"] = reward
+        info["total_score"] = self.game.scorecard.compute_final_score() 
         if info.get("invalid_action"):
             reward += self.invalid_action_penalty
         done = self.game.is_game_over()
+        if done:
+            # VecEnv wrappers (e.g. SB3's DummyVecEnv) reset the underlying env
+            # in place as soon as `done` is True, and Scorecard.reset() mutates
+            # the same object rather than replacing it — so any caller reading
+            # `self.game.scorecard` after `step()` returns sees the post-reset,
+            # empty scorecard. Snapshot it now so eval/diagnostics code can read
+            # the finished game's scorecard from `info` instead.
+            info["final_scorecard"] = copy.deepcopy(self.game.scorecard)
+            reward += upper_score_measure + _pursuit_reward(
+            self.game.get_final_score(), self.s_ref, self.reward_exponent
+            )
+
         if not done:
             self.game.reset_rolls()
         return self._build_observation(), reward, done, False, info
@@ -123,21 +159,53 @@ class YahtzeeEnv(gym.Env):
 
     def action_masks(self):
         """
-        Generate action masks for RL models
-        :return:
+        Generate action masks for RL models.
+
+        Two phases:
+          - Rolling phase (``rolls_remaining > 0``): all 32 reroll-mask actions
+            are valid.
+          - Scoring phase (``rolls_remaining == 0``):
+            * If the Hasbro Joker rule is active (Yahtzee filled with 50 and
+              current dice are a Yahtzee), the mask follows the Joker priority:
+                1. matching Upper box open  -> only that one action allowed
+                2. else, any open non-Yahtzee Lower box allowed
+                3. else (all Lower also filled), any open Upper box allowed
+              The +100 Yahtzee bonus accrues automatically inside
+              :meth:`Scorecard.mark_score` when the selected category is
+              scored; there is no separate "claim joker bonus" action.
+            * Otherwise, any unmarked category (0-12) is valid.
         """
         mask = np.zeros(self.action_space.n, dtype=bool)
-        category_mask = []
         if self.game.rolls_remaining > 0:
             mask[:] = True
-        else:
-            for category in Category:
-                if category == Category.YAHTZEE:
-                    category_mask.append(not self.game.scorecard.is_category_marked(category) or combo_satisfied(self.game.dice, category))
-                else:
-                    category_mask.append(not self.game.scorecard.is_category_marked(category))
-            mask[:13] = np.array(category_mask, dtype=bool)
+            return mask
 
+        scorecard = self.game.scorecard
+        if scorecard.joker_active(self.game.dice):
+            face = int(self.game.dice[0])
+            matching_upper = next(
+                c for c in Category.upper_categories() if UPPER_SECTION_MAP[c] == face
+            )
+            upper_unmarked = [
+                c for c in Category.upper_categories()
+                if not scorecard.is_category_marked(c)
+            ]
+            lower_unmarked_non_yahtzee = [
+                c for c in Category.lower_categories()
+                if c != Category.YAHTZEE and not scorecard.is_category_marked(c)
+            ]
+            if matching_upper in upper_unmarked:
+                allowed = [matching_upper]
+            elif lower_unmarked_non_yahtzee:
+                allowed = lower_unmarked_non_yahtzee
+            else:
+                allowed = upper_unmarked
+            for c in allowed:
+                mask[CATEGORY_TO_ACTION[c]] = True
+            return mask
+
+        for c in Category:
+            mask[CATEGORY_TO_ACTION[c]] = not scorecard.is_category_marked(c)
         return mask
 
 
@@ -179,6 +247,36 @@ class YahtzeeEnv(gym.Env):
 
     def _build_lower_score_observation(self) -> np.ndarray:
         return np.array([self.game.scorecard.compute_lower_score()], dtype=np.float32)
+    
+    def _build_total_score_observation(self) -> np.ndarray:
+        return np.array([self.game.scorecard.compute_final_score()], dtype=np.float32)
+
+    def _build_bonus_progress_observation(self) -> np.ndarray:
+        """
+        Build the upper-bonus progress feature.
+
+        Computes ``phi_bonus(c) = min(sum_i c_i / 63, 1)`` where ``c_i`` is the
+        raw score in upper-section box ``i`` (Aces..Sixes). Uses raw category
+        scores from ``scorecard.score_board``, NOT ``compute_upper_score()``
+        (which adds the +35 bonus when total >= 63). Unmarked upper boxes
+        contribute 0 by ``Scorecard.__init__``.
+        """
+        upper_sum = sum(
+            self.game.scorecard.score_board[c]["score"]
+            for c in Category.upper_categories()
+        )
+        return np.array([min(upper_sum / 63.0, 1.0)], dtype=np.float32)
+
+    def _build_joker_active_observation(self) -> np.ndarray:
+        """
+        Build the Joker-available indicator: 1.0 when the Hasbro Joker rule
+        is available this game (YAHTZEE scored with an actual Yahtzee),
+        else 0.0. This is the broad "available" signal, independent of
+        whether the current dice happen to be a Yahtzee this turn — see
+        :meth:`Scorecard.joker_eligible`.
+        """
+        active = self.game.scorecard.joker_eligible()
+        return np.array([1.0 if active else 0.0], dtype=np.float32)
 
     def _build_upper_section_probabilities_observation(self) -> np.ndarray:
         return np.array(upper_section_prob_vector(self.game.dice, self.game.rolls_remaining), dtype=np.float32)
@@ -201,6 +299,9 @@ class YahtzeeEnv(gym.Env):
             self._build_scorecard_observation(),
             self._build_upper_score_observation(),
             self._build_lower_score_observation(),
+            self._build_total_score_observation(),
+            self._build_bonus_progress_observation(),
+            self._build_joker_active_observation(),
         ]
         if self.use_probabilities:
             obs_parts.extend([

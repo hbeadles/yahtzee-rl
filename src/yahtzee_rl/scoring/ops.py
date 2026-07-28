@@ -31,6 +31,58 @@ def dice_count(dice: np.ndarray) -> Counter:
     return Counter(dice)
 
 
+def is_yahtzee(dice: np.ndarray) -> bool:
+    """
+    Check whether the current dice form a Yahtzee (all five dice equal).
+    :param dice: np.ndarray of 5 dice values
+    :return: True iff all five dice share the same face value
+    """
+    counts = dice_count(dice)
+    return any(v == 5 for v in counts.values())
+
+
+JOKER_LOWER_FIXED: dict[Category, int] = {
+    Category.FULL_HOUSE: 25,
+    Category.SMALL_STRAIGHT: 30,
+    Category.LARGE_STRAIGHT: 40,
+}
+
+
+def joker_score(category: Union[Category, str], dice: np.ndarray) -> int:
+    """
+    Score `dice` (assumed to be a Yahtzee) in `category` under the Hasbro Joker rule.
+
+    The Joker rule applies when the player rolls a second Yahtzee after the
+    Yahtzee category has already been filled with 50. The caller is responsible
+    for verifying that the rule is active before calling this function — see
+    :meth:`Scorecard.joker_active`.
+
+    Joker payouts:
+      - Upper categories: face_value * 5 (normal upper score for the matching face)
+      - Full House: 25 (joker counts as a full house regardless of dice shape)
+      - Small Straight: 30
+      - Large Straight: 40
+      - Three/Four of a Kind, Chance: sum of all dice (i.e. face_value * 5)
+      - Yahtzee: 50 (defensive — under Hasbro rules the agent should not be able
+        to re-pick Yahtzee; the +100 bonus accrues separately via `num_times_achieved`)
+
+    :param category: target scoring category
+    :param dice: np.ndarray of 5 dice values (assumed to be a Yahtzee)
+    :return: joker payout in points (int)
+    """
+    cat = Category(category) if not isinstance(category, Category) else category
+    if cat in Category.upper_categories():
+        face = UPPER_SECTION_MAP[cat]
+        return int(np.sum(dice[dice == face]))
+    if cat in JOKER_LOWER_FIXED:
+        return JOKER_LOWER_FIXED[cat]
+    if cat in (Category.THREE_OF_A_KIND, Category.FOUR_OF_A_KIND, Category.CHANCE):
+        return int(np.sum(dice))
+    if cat == Category.YAHTZEE:
+        return 50
+    return 0
+
+
 def combo_satisfied(dice: np.ndarray, move: Union[Category, str]) -> bool:
     """
     Check if a particular dice combination is satisfied

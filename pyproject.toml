@@ -13,6 +13,7 @@ dependencies = [
     "numpy>=2.4.1",
     "pandas>=3.0.0",
     "platformdirs>=4.9.6",
+    "plotly>=5.24.0",
     "pydantic>=2.13.3",
     "pytest>=9.0.2",
     "raylib>=5.5.0.4",

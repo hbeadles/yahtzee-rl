@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "experiment_name": "ppo_yahtzee_full_v2",
+  "created_at": "2026-07-21T17:55:08",
+  "max_timesteps": 20000000.0,
+  "save_freq": 100000,
+  "eval_freq": 100000,
+  "n_eval_episodes": 5,
+  "policy_net_arch": {
+    "pi": [
+      256,
+      256
+    ],
+    "vf": [
+      256,
+      256
+    ]
+  },
+  "env": {
+    "lambda_upper": 0.05,
+    "lambda_yahtzee": 0.2,
+    "use_expecteds": true,
+    "use_probabilities": true,
+    "invalid_action_substitute": false,
+    "invalid_action_penalty": -20.0,
+    "s_ref": 200.0,
+    "reward_exponent": 3.0
+  },
+  "features_extractor_class": "yahtzee_rl.train.train_baselines.YahtzeeTrunk",
+  "features_extractor_kwargs": {
+    "features_dim": 356,
+    "n_layers": 3,
+    "dropout": 0.1
+  },
+  "model_type": "MASKABLE_PPO",
+  "batch_size": 78,
+  "n_steps": 390,
+  "gamma": 0.99,
+  "n_epochs": 5,
+  "ent_coef": 0.02,
+  "vec_normalize": true,
+  "clip_range": 0.1,
+  "gae_lambda_initial": 0.2,
+  "gae_lambda_final": 0.95,
+  "normalize_advantage": true,
+  "target_kl": null
+}
