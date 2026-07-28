@@ -39,7 +39,7 @@ jobs:
         # `pygbag . --build` compiles the WASM bundle to build/web and exits.
         # Plain `pygbag .` (no --build) starts an interactive dev server that
         # never exits on its own, so it must not be run as a CI step.
-        run: uv run pygbag . --build
+        run: uv run pygbag --build . 
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
