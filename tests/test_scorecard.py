@@ -209,15 +209,15 @@ def test_game_with_yahtzee_bonus():
 # ============================================================
 
 def test_mark_score_returns_false_when_already_marked():
-    """Test that marking an already-marked category returns False."""
+    """mark_score returns the score marked, or -1.0 if already marked."""
     scorecard = Scorecard(turn_number=0)
-    
-    # First mark should succeed
-    assert scorecard.mark_score("aces", np.array([1, 1, 1, 2, 3])) is True
-    
-    # Second mark on same category should fail
-    assert scorecard.mark_score("aces", np.array([1, 1, 1, 1, 1])) is False
-    
+
+    # First mark should succeed and return the score.
+    assert scorecard.mark_score("aces", np.array([1, 1, 1, 2, 3])) == 3
+
+    # Second mark on same category should fail.
+    assert scorecard.mark_score("aces", np.array([1, 1, 1, 1, 1])) == -1.0
+
     # Score should remain from first mark
     assert scorecard.get_category_score("aces") == 3
 
@@ -242,7 +242,7 @@ def test_reset_clears_all_scores():
     assert scorecard.score_board["aces"]["marked"] is False
     
     # Should be able to mark categories again
-    assert scorecard.mark_score("aces", np.array([1, 1, 2, 3, 4])) is True
+    assert scorecard.mark_score("aces", np.array([1, 1, 2, 3, 4])) == 2
 
 
 def test_get_category_score():

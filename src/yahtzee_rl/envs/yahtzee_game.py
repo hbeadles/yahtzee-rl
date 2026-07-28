@@ -29,13 +29,22 @@ class YahtzeeGame:
     
     def score_category(self, category: Category) -> Tuple[int, int, bool]:
         """
-        Score current dice in category
+        Score current dice in category.
+
+        Computes the Joker flag from the current scorecard state and dice, and
+        forwards it to :meth:`Scorecard.mark_score`. Under Joker the +100 bonus
+        accrues automatically via the scorecard's ``num_times_achieved`` counter.
+
+        The "already marked non-Yahtzee" guard remains as a defensive penalty
+        path; :meth:`YahtzeeEnv.action_masks` should prevent it from being
+        reached, even under Joker (Joker priority routes around marked boxes).
         """
+        joker = self.scorecard.joker_active(self.dice)
         if self.scorecard.score_board[category]["marked"] and category != Category.YAHTZEE:
             self.round += 1
             self.rolls_remaining = 3
             return -10.0, -10.0, False
-        score = self.scorecard.mark_score(category, self.dice)
+        score = self.scorecard.mark_score(category, self.dice, joker_active=joker)
         upper_score = self.scorecard.compute_upper_score()
         lower_score = self.scorecard.compute_lower_score()
         self.round += 1

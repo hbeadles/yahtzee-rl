@@ -3,7 +3,7 @@ from functools import lru_cache
 from typing import Tuple
 
 from yahtzee_rl.config import Category, UPPER_SECTION_MAP
-from yahtzee_rl.scoring.ops import dice_count
+from yahtzee_rl.scoring.ops import JOKER_LOWER_FIXED, dice_count
 from yahtzee_rl.scoring.scorecard import Scorecard
 
 ### Lower section payoff utilities ###
@@ -18,6 +18,16 @@ LOWER_FIXED_SCORES: dict[Category, int] = {
 YAHTZEE_BONUS = 100
 # Max possible sum-of-dice score (five 6s)
 MAX_DICE_SUM = 30
+
+
+def _joker_eligible(score_card: Scorecard) -> bool:
+    """True iff a future Yahtzee would trigger the Hasbro Joker rule.
+
+    Delegates to :meth:`Scorecard.joker_eligible` — requires the YAHTZEE
+    category to be filled with 50; a zeroed-out Yahtzee permanently disables
+    joker per Hasbro rules.
+    """
+    return score_card.joker_eligible()
 
 
 @lru_cache(maxsize=4)
@@ -96,15 +106,15 @@ def upper_section_probability(dice: np.ndarray,
     Returns:
         P(count >= 3) for the category, or 0.0 if marked/invalid
     """
-    _, dist = upper_section_markov(dice, move, remaining_rolls)
-    return dist
+    _, p_three_plus, _ = upper_section_markov(dice, move, remaining_rolls)
+    return p_three_plus
 
 
 def upper_section_expected_score(dice: np.ndarray,
                                  score_card: Scorecard,
                                  move: Category,
                                  remaining_rolls: int,
-                                 lambda_v: float = 0.05) -> float:
+                                 lambda_v: float = 0.075) -> float:
     """
     Expected score for a single upper section category.
     Returns face_value * expected_count (raw expected points).
@@ -121,18 +131,28 @@ def upper_section_expected_score(dice: np.ndarray,
         Expected score (0.0 to face_value * 5), or 0.0 if marked/invalid
          lambda_v:
     """
-    remaining = 375.0 - score_card.compute_final_score()
-    denominator = remaining if remaining > 0 else 1.0 
+    remaining = 500.0 - score_card.compute_final_score()
+    denominator = remaining if remaining > 0 else 1.0
     upper_score_max = 63.0
     upper_score_current = score_card.compute_upper_score()
     top_remaining = upper_score_max - upper_score_current
-    #denom = (top_remaining / upper_score_max) + (top_remaining / denominator)
     if move not in UPPER_SECTION_MAP or score_card.is_category_marked(move):
         return 0.0
-    exp_count, dist = upper_section_markov(dice, move, remaining_rolls)
-    #return (faces[move] * exp_count) * denom
-    #return ((exp_count / upper_score_max) + (exp_count / denominator)) * dist
-    return (exp_count  / denominator) + (lambda_v * (top_remaining / upper_score_max))
+    exp_score, _, dist = upper_section_markov(dice, move, remaining_rolls)
+    ev = (exp_score / denominator) + (lambda_v * (top_remaining / upper_score_max))
+
+    # Joker forced-upper path: when YAHTZEE is filled with 50 and the player
+    # rolls a yahtzee of this face, joker priority forces routing to this
+    # upper category for face*5 + 100. The face*5 portion is already inside
+    # `exp_score` via dist[5]; add only the +100 bonus contribution here.
+    # See ../strategies/markov.py and ../envs/yahtzee_env.py for the runtime
+    # joker handling. Caveat: each open upper's row gets this contribution
+    # as if the yahtzee would route to it, matching the per-category-
+    # independence approximation used by the strict EV.
+    if _joker_eligible(score_card):
+        p_yahtzee_face = float(dist[5])
+        ev += p_yahtzee_face * YAHTZEE_BONUS / denominator
+    return ev
 
 
 
@@ -140,7 +160,7 @@ def lower_section_expected_score(dice: np.ndarray,
                                  score_card: Scorecard,
                                  move: Category,
                                  remaining_rolls: int,
-                                 lambda_v: float = 0.4) -> float:
+                                 lambda_v: float = 0.05) -> float:
     """
     Expected score for a single lower section category.
 
@@ -163,10 +183,17 @@ def lower_section_expected_score(dice: np.ndarray,
         Expected score (float), or 0.0 if marked/invalid
     """
     remaining = 375.0 - score_card.compute_final_score()
-    denominator = remaining if remaining > 0 else 1.0 
+    denominator = remaining if remaining > 0 else 1.0
     if move not in Category.lower_categories():
         return 0.0
-    # Yahtzee requires special handling for the bonus
+    # Yahtzee requires special handling for the bonus.
+    # Note: under the action mask, the agent never picks YAHTZEE in the
+    # scoring phase when joker is alive, so this row primarily informs the
+    # rolling-phase strategy. The +100 contribution here is a strict
+    # undercount of the true value of another yahtzee (which would also pay
+    # the routed lower/upper joker payoff) — but the joker contributions on
+    # the open upper/lower rows below already surface that signal. Adding
+    # the routed payoff here too would double-count.
     if move == Category.YAHTZEE:
         yahtzee_achieved = score_card.score_board[Category.YAHTZEE]["num_times_achieved"]
         raw_prob = yahtzee(dice, remaining_rolls)
@@ -183,39 +210,55 @@ def lower_section_expected_score(dice: np.ndarray,
 
     prob = lower_section_probabilities(dice, move, remaining_rolls)
 
-    # Fixed-score categories
+    # Strict EV (natural combo route).
     if move in LOWER_FIXED_SCORES:
-        payoff = (float(LOWER_FIXED_SCORES[move]) / denominator)
-        return (prob * payoff)
+        ev = prob * float(LOWER_FIXED_SCORES[move]) / denominator
+    elif move == Category.THREE_OF_A_KIND:
+        d_counts = dice_count(dice)
+        max_face = max(d_counts, key=d_counts.get)
+        l_dice = [max_face] * 3
+        upper_dice = l_dice + [6, 6]
+        lower_dice = l_dice + [1, 1]
+        mean_dice = (np.sum(upper_dice) + np.sum(lower_dice)) / 2
+        ev = prob * mean_dice / denominator
+    elif move == Category.FOUR_OF_A_KIND:
+        d_counts = dice_count(dice)
+        max_face = max(d_counts, key=d_counts.get)
+        l_dice = [max_face] * 4
+        upper_dice = l_dice + [6]
+        lower_dice = l_dice + [1]
+        mean_dice = (np.sum(upper_dice) + np.sum(lower_dice)) / 2
+        ev = prob * mean_dice / denominator
+    elif move == Category.CHANCE:
+        # Always achievable (prob=1.0); current sum is a lower bound on the
+        # final sum we'd keep across remaining rolls.
+        ev = prob * float(np.sum(dice)) / denominator
+    else:
+        return 0.0
 
-    # Sum-based categories: score = sum of all 5 dice when combo is achieved
-    if move in (Category.THREE_OF_A_KIND, Category.FOUR_OF_A_KIND):
-        if move == Category.THREE_OF_A_KIND:
-            d_counts = dice_count(dice)
-            max_face = max(d_counts, key=d_counts.get)
-            l_dice = [max_face] * 3
-            upper_dice = l_dice + [6, 6]
-            lower_dice = l_dice + [1, 1]
-            mean_dice = (np.sum(upper_dice) + np.sum(lower_dice)) / 2
-            payoff = (mean_dice / denominator)
-            return (prob * payoff)
-        elif move == Category.FOUR_OF_A_KIND:
-            d_counts = dice_count(dice)
-            max_face = max(d_counts, key=d_counts.get)
-            l_dice = [max_face] * 4
-            upper_dice = l_dice + [6]
-            lower_dice = l_dice + [1]
-            mean_dice = (np.sum(upper_dice) + np.sum(lower_dice)) / 2
-            payoff = (mean_dice / denominator)
-            return (prob * payoff)
+    # Joker free-lower path: when YAHTZEE is filled with 50, this category is
+    # still open, and the player rolls a yahtzee whose matching upper is also
+    # already filled, joker priority routes the dice here for
+    # joker_payoff(move) + 100. Caveat: same per-category-independence
+    # approximation as above — each open lower's row gets this contribution
+    # as if it'd be the chosen joker route. The agent's argmax over the EV
+    # vector then picks the best joker route, which is the desired behavior.
+    if _joker_eligible(score_card) and not score_card.is_category_marked(move):
+        face_dist = yahtzee_face_distribution(dice, remaining_rolls)
+        p_y = float(face_dist.sum())
+        if move in JOKER_LOWER_FIXED:
+            joker_payoff = JOKER_LOWER_FIXED[move]
+            joker_contrib = p_y * (joker_payoff + YAHTZEE_BONUS) / denominator
+        elif move in (Category.THREE_OF_A_KIND, Category.FOUR_OF_A_KIND, Category.CHANCE):
+            # joker payoff = 5 * face; weight by per-face yahtzee probability
+            face_values = np.arange(1, 7)
+            expected_payoff_sum = float(np.dot(face_dist, 5 * face_values))
+            joker_contrib = (expected_payoff_sum + p_y * YAHTZEE_BONUS) / denominator
+        else:
+            joker_contrib = 0.0
+        ev += joker_contrib
 
-    # Chance: always achievable (prob=1.0), score = sum of dice
-    # With remaining rolls we'd keep high dice; current sum is a lower bound
-    if move == Category.CHANCE:
-        payoff = float(np.sum(dice)) / denominator
-        return (prob * payoff)
-
-    return 0.0
+    return ev
 
 
 
@@ -308,12 +351,10 @@ def lower_section_expected_score_vector(dice: np.ndarray,
     return obs
 
 
-def upper_section_markov(dice: np.ndarray, category: Category, 
-                         remaining_rolls: int) -> tuple[int, float]:
+def upper_section_markov(dice: np.ndarray, category: Category,
+                         remaining_rolls: int) -> tuple[float, float, np.ndarray]:
     """
     Core Markov chain computation for upper section categories.
-    Returns both the expected count and the full probability distribution
-    over final counts (0-5 matching dice).
 
     Args:
         dice: array of dice values (values 1-6)
@@ -321,18 +362,42 @@ def upper_section_markov(dice: np.ndarray, category: Category,
         remaining_rolls: the number of remaining rolls
 
     Returns:
-        Tuple of (expected_count, distribution) where:
-            - expected_count: E[matching dice] after remaining rolls (0.0 to 5.0)
-            - distribution: np.ndarray of shape (6,) with P(count=i) for i in 0..5
+        Tuple of (expected_score, p_three_plus, dist) where:
+            - expected_score: face_value * E[matching dice] after remaining rolls
+            - p_three_plus: P(matching count >= 3) — the upper-bonus threshold
+            - dist: np.ndarray of shape (6,) with P(count=i) for i in 0..5.
+              ``dist[5]`` is P(yahtzee of this face).
     """
+    face_value = UPPER_SECTION_MAP[category]
+
     count = dice_count(dice)[UPPER_SECTION_MAP[category]]
-    # state = np.zeros(6, dtype=float)
-    # state[count] = 1
-    # dist = _upper_count_t_powered(remaining_rolls) @ state
-    # expected = float(np.dot(np.arange(6), dist))
-    # return expected, dist[count]
-    three_of_a_kind = simple_three_of_a_kind(dice, UPPER_SECTION_MAP[category], remaining_rolls)
-    return UPPER_SECTION_MAP[category] * count, three_of_a_kind
+    state = np.zeros(6, dtype=float)
+    state[count] = 1
+    dist = _upper_count_t_powered(remaining_rolls) @ state
+    expected_count = float(np.dot(np.arange(6), dist))
+    expected_score = face_value * expected_count
+    p_three_plus = float(dist[3:].sum())
+    return expected_score, p_three_plus, dist
+
+
+def yahtzee_face_distribution(dice: np.ndarray, remaining_rolls: int) -> np.ndarray:
+    """Per-face yahtzee probability vector.
+
+    Returns a shape-(6,) array where ``out[k-1]`` is the probability of
+    finishing with a yahtzee of face k after ``remaining_rolls`` more rolls,
+    *under the strategy that targets face k* (keep matching, re-roll the rest).
+
+    Each entry is the per-face Markov upper-count distribution evaluated at
+    ``dist[5]``. Because the per-face values condition on different keep
+    strategies, ``out.sum()`` is an upper bound on the true P(any yahtzee
+    under a single fixed strategy), not an equality. In practice the
+    overestimate is dominated by the best-case face and is small.
+    """
+    out = np.zeros(6, dtype=float)
+    for i, cat in enumerate(Category.upper_categories()):
+        _, _, dist = upper_section_markov(dice, cat, remaining_rolls)
+        out[i] = float(dist[5])
+    return out
 
 def reaching_x(dice: np.ndarray, dice_number: int, target_state: int, remaining_rolls: int) -> float:
     """
