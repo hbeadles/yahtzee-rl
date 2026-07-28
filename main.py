@@ -66,7 +66,7 @@ from game.base import Game
 
 async def main() -> None:
     game = Game(
-        base_shader_path=Path("game/shaders/lines_v2.frag"),
+        base_shader_path=Path("game/shaders/background_es.frag"),
         title=b"Yahtzee RL Simulation",
         target_fps=60
     )
