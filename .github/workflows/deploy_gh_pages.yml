@@ -1,5 +1,7 @@
 name: Build & Deploy to GitHub Pages
 on:
+  push:
+    branches: [main]
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches: [main]
@@ -52,7 +54,11 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build
-    if: github.event.pull_request.merged == true
+    # Only deploy once a change has actually landed on main. Deploying from a
+    # pull_request event (even a merged one) runs on the synthetic
+    # refs/pull/<n>/merge ref, which the github-pages environment's branch
+    # protection rules reject outright.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
