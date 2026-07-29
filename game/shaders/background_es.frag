@@ -19,7 +19,7 @@ void main() {
     vec2 st = gl_FragCoord.xy / u_resolution;
     vec2 mouse_st = u_mouse / u_resolution;
     // Scale the st coordinate to use hexTile
-    st *= 8.0;
+    st *= 16.0;
     vec4 t = hexTile(st);
     vec2 tileUV = t.xy;
     vec2 tileID = t.zw;

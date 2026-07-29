@@ -56,6 +56,10 @@ class TitleState(State):
         button_y = APP_SCREEN_HEIGHT // 2 + 100
         self.play_button_rect = ffi.new("struct Rectangle *",
                                         [button_x, button_y, button_width, button_height])[0]
+        self.log(
+            f"TitleState - resolution diag: screen={GetScreenWidth()}x{GetScreenHeight()} "
+            f"render={GetRenderWidth()}x{GetRenderHeight()} "
+            f"dpi_scale={GetWindowScaleDPI().x:.2f}x{GetWindowScaleDPI().y:.2f}")
 
     def update(self, delta_time: float) -> Optional[str]:
         """Update the title state and check for play button click.

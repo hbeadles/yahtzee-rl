@@ -95,12 +95,6 @@ class Game:
         """
         SetConfigFlags(self.config_flags)
         InitWindow(self.screen_width, self.screen_height, self.title)
-        if platform.system() == "Emscripten":
-            # pygbag's template only maps the canvas and hides the loading
-            # overlay after main.py returns, which never happens for a
-            # running game loop - do it ourselves.
-            platform.window.window_resize()
-            platform.window.infobox.style.display = "none"
         SetTargetFPS(self.fps)
         frag_src: str = self.preprocess_shader(self.base_shader_path.read_text(),
                                                 self.base_shader_path.parent)
