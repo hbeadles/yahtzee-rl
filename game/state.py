@@ -7,6 +7,7 @@ gameplay screen, game over screen).
 
 from typing import Dict, Optional, TYPE_CHECKING, Any
 from abc import ABC, abstractmethod
+from raylib import LOG_INFO, TraceLog
 
 if TYPE_CHECKING:
     from game.base import Game
@@ -40,6 +41,10 @@ class State(ABC):
             game: Reference to the main Game instance.
         """
         self.game: 'Game' = game
+
+    def log(self, message: str, level: int = LOG_INFO):
+        TraceLog(level, message.replace("%", "%%").encode())
+
 
     @abstractmethod
     def update(self, delta_time: float) -> Optional[str]:

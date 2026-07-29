@@ -11,6 +11,16 @@ These agents are trained using a custom Yahtzee env gymnasium environment, with 
 
 In addtion, we also include a fully playable interface via Raylib that allows you to play the game of Yahtzee with Markov Agent assistance. The Markov Agent generally trends on the maximization strategy for Yahtzee, which favors getting the lower-score categories over the higher score categories. 
 
+## Yahtzee RL - Game
+
+You can play a game of Yahtzee with an interactive game I developed here: 
+
+1. [Yahtzee RL](https://hbeadles.github.io/yahtzee-rl)
+
+It uses Raylib and pygbag to deploy to WebGL. Developing the game took some thought on state management and interaction between elements. 
+
+The AI uses the Markov agent, which doesn't require torch as a dependency
+
 ## Yahtzee RL - Methodology
 
 Several reference resources were used for this project. I'll reference a few of them with links for attribution. 
