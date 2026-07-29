@@ -1,0 +1,3 @@
+# These are generated diagnostic exports (Plotly sankey charts), not
+# hand-written HTML, so exclude them from GitHub's language statistics.
+*.html linguist-generated=true
